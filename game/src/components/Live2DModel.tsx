@@ -170,7 +170,24 @@ export default function OmegaLive2DModel({
   useEffect(() => {
     const m = modelRef.current;
     if (!m) return;
-    try { m.focus((mousePos.x - 0.5) * 200, -(mousePos.y - 0.5) * 200); } catch {}
+    try {
+      // 只设置眼球转动，不移动头部和身体
+      const eyeX = (mousePos.x - 0.5) * 30;
+      const eyeY = -(mousePos.y - 0.5) * 30;
+
+      // 通过 coreModel.setParameterValueById 只控制眼球参数
+      const core = m.internalModel?.coreModel;
+      if (core && typeof core.setParameterValueById === "function") {
+        core.setParameterValueById("ParamEyeBallX", eyeX);
+        core.setParameterValueById("ParamEyeBallY", eyeY);
+        // 把头部和身体角度归零，防止历史 focus() 值残留
+        core.setParameterValueById("ParamAngleX", 0);
+        core.setParameterValueById("ParamAngleY", 0);
+        core.setParameterValueById("ParamAngleZ", 0);
+        core.setParameterValueById("ParamBodyAngleX", 0);
+        core.setParameterValueById("ParamBodyAngleY", 0);
+      }
+    } catch {}
   }, [mousePos]);
 
   return (
