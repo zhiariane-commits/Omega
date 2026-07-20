@@ -1,4 +1,4 @@
-import { Application, Assets, Container, Graphics, Sprite, Text, Texture, Ticker } from "pixi.js";
+import { Application, BaseTexture, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { OmegaEmotion, OmegaState } from "../types";
 import { ALL_RECIPES } from "../systems/crafting";
@@ -97,20 +97,20 @@ export default function Room2Scene({
     window.addEventListener("keyup", keyUp);
 
     async function init() {
-      const app = new Application();
-      await app.init({
+      const app = new Application({
         width: host.clientWidth,
         height: host.clientHeight,
-        backgroundAlpha: 0,
+        transparent: true,
         antialias: true,
-        resizeTo: host,
-      });
+        resolution: window.devicePixelRatio || 1,
+        autoDensity: true,
+      })
       if (disposed) {
         app.destroy(true);
         return;
       }
       appRef.current = app;
-      host.appendChild(app.canvas);
+      host.appendChild(app.view as unknown as Node);
 
       // Background
       const bg = new Graphics();
@@ -209,8 +209,8 @@ export default function Room2Scene({
         app.renderer.resize(host.clientWidth, host.clientHeight);
       window.addEventListener("resize", handleResize);
 
-      app.ticker.add((ticker: Ticker) => {
-        const speed = 3.1 * ticker.deltaTime;
+      app.ticker.add((dt: number) => {
+        const speed = 3.1 * dt;
 
         if (placing && placingId.current) {
           // Move the placing preview
@@ -469,7 +469,16 @@ function renderFurniture(
 }
 
 function loadImageAsTexture(_renderer: any, url: string): Promise<Texture> {
-  return Assets.load<Texture>(url);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const base = new BaseTexture(img);
+      resolve(new Texture(base));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
 }
 
 function drawOmegaFallback(emotion: OmegaEmotion, texture?: Texture) {
@@ -477,32 +486,33 @@ function drawOmegaFallback(emotion: OmegaEmotion, texture?: Texture) {
   if (texture) {
     const sprite = new Sprite(texture);
     sprite.anchor.set(0.5, 1);
-    sprite.width = 100;
-    sprite.height = 168;
-    sprite.y = 100;
+    sprite.width = 130;
+    sprite.height = 218;
+    sprite.y = 130;
     root.addChild(sprite);
   } else {
     const body = new Graphics();
     body.beginFill(0xfffaf0);
-    body.drawRoundedRect(-26, 22, 52, 78, 20);
+    body.drawRoundedRect(-34, 29, 68, 101, 26);
     body.endFill();
     body.lineStyle(2, 0x19c8b9);
-    body.drawRoundedRect(-26, 22, 52, 78, 20);
+    body.drawRoundedRect(-34, 29, 68, 101, 26);
     body.lineStyle(0);
     root.addChild(body);
     const head = new Graphics();
     head.beginFill(0xfffdf4);
-    head.drawCircle(0, 0, 32);
+    head.drawCircle(0, 0, 42);
     head.endFill();
     head.lineStyle(2, 0xdfd4be);
-    head.drawCircle(0, 0, 32);
+    head.drawCircle(0, 0, 42);
     head.lineStyle(0);
     root.addChild(head);
   }
   const glow = new Graphics();
   glow.beginFill(0x19c8b9, 0.15);
-  glow.drawEllipse(0, 92, 38, 8);
+  glow.drawEllipse(0, 120, 49, 10);
   glow.endFill();
   root.addChild(glow);
   return root;
 }
+

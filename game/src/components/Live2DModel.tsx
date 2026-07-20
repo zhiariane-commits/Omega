@@ -93,8 +93,8 @@ export default function OmegaLive2DModel({
         height: h,
         backgroundAlpha: 0,
         antialias: true,
-        resolution: 1,
-        autoDensity: false,
+        resolution: window.devicePixelRatio || 1,
+        autoDensity: true,
       });
       el.appendChild(app.view as HTMLCanvasElement);
       appRef.current = app;
@@ -171,16 +171,16 @@ export default function OmegaLive2DModel({
     const m = modelRef.current;
     if (!m) return;
     try {
-      // Ö»ÉèÖÃÑÛÇò×ª¶¯£¬²»ÒÆ¶¯Í·²¿ºÍÉíÌå
+      // Ö»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×ªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¶ï¿½Í·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
       const eyeX = (mousePos.x - 0.5) * 30;
       const eyeY = -(mousePos.y - 0.5) * 30;
 
-      // Í¨¹ý coreModel.setParameterValueById Ö»¿ØÖÆÑÛÇò²ÎÊý
+      // Í¨ï¿½ï¿½ coreModel.setParameterValueById Ö»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
       const core = m.internalModel?.coreModel;
       if (core && typeof core.setParameterValueById === "function") {
         core.setParameterValueById("ParamEyeBallX", eyeX);
         core.setParameterValueById("ParamEyeBallY", eyeY);
-        // °ÑÍ·²¿ºÍÉíÌå½Ç¶È¹éÁã£¬·ÀÖ¹ÀúÊ· focus() Öµ²ÐÁô
+        // ï¿½ï¿½Í·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¶È¹ï¿½ï¿½ã£¬ï¿½ï¿½Ö¹ï¿½ï¿½Ê· focus() Öµï¿½ï¿½ï¿½ï¿½
         core.setParameterValueById("ParamAngleX", 0);
         core.setParameterValueById("ParamAngleY", 0);
         core.setParameterValueById("ParamAngleZ", 0);

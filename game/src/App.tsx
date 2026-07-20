@@ -113,11 +113,7 @@ export function App() {
 
   return (
     <>
-      <div className="starfield-bg">
-        <div className="shooting-star" />
-        <div className="shooting-star" />
-        <div className="shooting-star" />
-      </div>
+      {/* starfield background removed */}
       <FloatingWindow
         state={state}
         setState={setState}

@@ -223,9 +223,8 @@ function createCapsuleWindow(prologue = false) {
     width: 1080,
     height: 720,
     minWidth: 900,
-    minHeight: 620,
-    title: "Ω 太空舱",
-    backgroundColor: "#07111f",
+    transparent: true,
+    backgroundColor: "#00000000",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
