@@ -16,6 +16,13 @@ import {
   pickPeriodicTopic,
   ALL_MILESTONES,
 } from "../systems/storyMilestones";
+import {
+  pickNarrativeEntry,
+  getNarrativeNode,
+  followNarrativeOption,
+  type NarrativeNode,
+  type NarrativeOption,
+} from "../systems/narrative";
 
 type Props = {
   state: OmegaState;
@@ -79,6 +86,19 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   const [moodFlash, setMoodFlash] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
   const [clickBubble, setClickBubble] = useState<string | null>(null);
+  const [narrativeNodeId, setNarrativeNodeId] = useState<string | null>(null);
+  const [narrativeOptions, setNarrativeOptions] = useState<NarrativeOption[]>([]);
+
+  // ---------- 叙事系统 ----------
+  const pickNarrativeNode = useCallback(() => {
+    const entry = pickNarrativeEntry(stateRef.current);
+    if (!entry) { setNarrativeNodeId(null); setNarrativeOptions([]); return; }
+    const node = getNarrativeNode(entry.firstNodeId);
+    if (node) { setNarrativeNodeId(node.id); setNarrativeOptions(node.options.slice(0, 3)); }
+  }, []);
+
+  const busyRef = useRef(false);
+  busyRef.current = busy;
   const [animation, setAnimation] = useState<AnimationId>("idle");
   const [idleHint, setIdleHint] = useState(false);
   const [sleeping, setSleeping] = useState(false);
@@ -95,6 +115,31 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
 
   // 按亲密度档位计算的活力度（用于决定是否显示生气等）
   const affectionLevel = useMemo(() => getAffectionLevel(state.affinity), [state.affinity]);
+
+  // ---------- 发送消息（带文本参数） ----------
+  const sendMessageWithText = useCallback(async (text: string) => {
+    if (!text.trim() || busyRef.current) return;
+    setBusy(true);
+    setNarrativeOptions([]);
+    try {
+      const response = (await window.omega.ai.sendMessage({
+        text: text.trim(),
+        includeScreenshot,
+      })) as OmegaAIResponse;
+      setState(response.state!);
+      setMoodFlash(
+        `${response.moodDelta >= 0 ? "+" : ""}${response.moodDelta}`
+      );
+      setTimeout(() => setMoodFlash(null), 1100);
+      await refreshLog();
+      setTimeout(() => pickNarrativeNode(), 200);
+      if (response.featureIntent === "capsule") {
+        await window.omega.window.openCapsule();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [includeScreenshot, setState, refreshLog, pickNarrativeNode]);
 
   // ---------- 鼠标视线跟随 ----------
   useEffect(() => {
@@ -308,6 +353,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
     if (nextPanel === "chat") {
       await updateState({ currentMode: "chatting" });
       await refreshLog();
+      pickNarrativeNode();
     }
     wakeUp();
   }
@@ -320,27 +366,10 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   // ---------- 发送消息 ----------
   async function sendMessage(event: FormEvent) {
     event.preventDefault();
-    if (!input.trim() || busy) return;
+    if (!input.trim()) return;
     const text = input.trim();
     setInput("");
-    setBusy(true);
-    try {
-      const response = (await window.omega.ai.sendMessage({
-        text,
-        includeScreenshot,
-      })) as OmegaAIResponse;
-      setState(response.state!);
-      setMoodFlash(
-        `${response.moodDelta >= 0 ? "+" : ""}${response.moodDelta}`
-      );
-      setTimeout(() => setMoodFlash(null), 1100);
-      await refreshLog();
-      if (response.featureIntent === "capsule") {
-        await window.omega.window.openCapsule();
-      }
-    } finally {
-      setBusy(false);
-    }
+    await sendMessageWithText(text);
   }
 
   // ---------- 太空舱 ----------
@@ -664,6 +693,24 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
               </p>
             )}
           </div>
+          {/* 叙事选项 */}
+          {narrativeOptions.length > 0 && !busy && (
+            <div className="narrative-options">
+              {narrativeOptions.map((opt, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className="narrative-option-btn"
+                  onClick={(e) => {
+                    e?.stopPropagation();
+                    sendMessageWithText(opt.text);
+                  }}
+                >
+                  {opt.text}
+                </button>
+              ))}
+            </div>
+          )}
           <form className="chat-form" onSubmit={sendMessage}>
             <label className="screen-toggle">
               <input
