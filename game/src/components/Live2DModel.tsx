@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as PIXI from "pixi.js";
 import { Live2DModel as PixiL2D } from "pixi-live2d-display/cubism4";
+PixiL2D.registerTicker(PIXI.Ticker);
 import type { OmegaEmotion } from "../types";
 
 export type AnimationId = "idle" | "click" | "angry";
@@ -177,20 +178,21 @@ export default function OmegaLive2DModel({
     if (!m) return;
     try {
       // ֻ��������ת�������ƶ�ͷ��������
-      const eyeX = (mousePos.x - 0.5) * 30;
-      const eyeY = -(mousePos.y - 0.5) * 30;
+      const eyeX = -(mousePos.x - 0.5) * 12;
+      const eyeY = (mousePos.y - 0.5) * 12;
 
-      // ͨ�� coreModel.setParameterValueById ֻ�����������
+      // ͨ�� coreModel.setParameterValueById ֻ�����������?
       const core = m.internalModel?.coreModel;
       if (core && typeof core.setParameterValueById === "function") {
         core.setParameterValueById("ParamEyeBallX", eyeX);
         core.setParameterValueById("ParamEyeBallY", eyeY);
-        // ��ͷ��������Ƕȹ��㣬��ֹ��ʷ focus() ֵ����
-        core.setParameterValueById("ParamAngleX", 0);
-        core.setParameterValueById("ParamAngleY", 0);
-        core.setParameterValueById("ParamAngleZ", 0);
-        core.setParameterValueById("ParamBodyAngleX", 0);
-        core.setParameterValueById("ParamBodyAngleY", 0);
+        // ��ͷ��������Ƕȹ��㣬��ֹ���?focus() ֵ����
+        // 头部随鼠标小范围转动（不锁死，让物理引擎也能驱动头发摆动）
+        const angleX = -(mousePos.x - 0.5) * 10;
+        const angleY = (mousePos.y - 0.5) * 6;
+        core.setParameterValueById("ParamAngleX", angleX);
+        core.setParameterValueById("ParamAngleY", angleY);
+        // 不碰 ParamAngleZ / ParamBodyAngleX/Y，让物理/自动动画自由驱动
       }
     } catch {}
   }, [mousePos]);
