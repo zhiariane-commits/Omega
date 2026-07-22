@@ -34,6 +34,7 @@ export function CapsuleScene({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<Application | null>(null);
   const playerRef = useRef<Container | null>(null);
+  const faceRef = useRef<Graphics | null>(null);
   const positionRef = useRef<Position>({ x: 512, y: 444 });
   const keysRef = useRef(new Set<string>());
   const [nearDesk, setNearDesk] = useState(false);
@@ -79,7 +80,25 @@ export function CapsuleScene({
       appRef.current = app;
       hostElement.appendChild(app.view as unknown as Node);
 
-      // --- Background layer removed (transparent) ---
+      // --- Background image layer ---
+      try {
+        const capsuleBgTexture = await loadImageAsTexture(
+          app.renderer as unknown as import("pixi.js").Renderer,
+          "/capusle/capsule-bg.png"
+        );
+        const bgSprite = new Sprite(capsuleBgTexture);
+        bgSprite.width = app.screen.width;
+        bgSprite.height = app.screen.height;
+        app.stage.addChildAt(bgSprite, 0);
+      } catch (err) {
+        console.warn("Capsule background load failed, using fallback", err);
+        const fallback = new Graphics();
+        fallback.beginFill(0x0a1219);
+        fallback.drawRect(0, 0, app.screen.width, app.screen.height);
+        fallback.endFill();
+        app.stage.addChildAt(fallback, 0);
+      }
+
       // --- Decoration overlays ---
       const decorLayer = new Container();
       app.stage.addChild(decorLayer);
@@ -101,7 +120,8 @@ export function CapsuleScene({
         console.warn("Omega image load failed, using fallback draw", err);
       }
 
-      const player = drawOmega(emotion, omegaTexture);
+      const { root: player, face: initialFace } = drawOmega(emotion, omegaTexture);
+      faceRef.current = initialFace;
       player.position.set(positionRef.current.x, positionRef.current.y);
       player.visible = true;
       playerRef.current = player;
@@ -219,6 +239,13 @@ export function CapsuleScene({
       hostElement.replaceChildren();
     };
   }, [emotion, prologueDone, lowMood, mood, room2Unlocked, equippedDecorations, capsuleBackgroundDirty]);
+
+  // Reactive face updates when emotion changes
+  useEffect(() => {
+    if (faceRef.current) {
+      drawFaceGraphics(faceRef.current, emotion);
+    }
+  }, [emotion]);
 
   return (
     <section className="scene-wrap">
@@ -413,7 +440,7 @@ function drawUIOverlay(
   }
 }
 
-function drawOmega(emotion: OmegaEmotion, texture?: Texture) {
+function drawOmega(emotion: OmegaEmotion, texture: Texture | undefined): { root: Container; face: Graphics } {
   const root = new Container();
   if (texture) {
     const sprite = new Sprite(texture);
@@ -450,31 +477,36 @@ function drawOmega(emotion: OmegaEmotion, texture?: Texture) {
   moodGlow.endFill();
   root.addChild(moodGlow);
 
-  if (!texture) {
-    const face = new Graphics();
-    const eyeColor = emotion === "sad" || emotion === "calm_negative" ? 0x9a835a : 0x5d4037;
+  // Face always drawn on top (even over texture)
+  const face = new Graphics();
+  drawFaceGraphics(face, emotion);
+  root.addChild(face);
 
-    face.beginFill(eyeColor);
-    face.drawRoundedRect(-26, -10, 13, 5, 3);
-    face.drawRoundedRect(13, -10, 13, 5, 3);
-    face.endFill();
-
-    if (emotion === "happy" || emotion === "proud") {
-      face.lineStyle(2, 0x5d4037);
-      face.arc(0, 10, 16, 0, Math.PI);
-      face.lineStyle(0);
-    } else if (emotion === "sad") {
-      face.lineStyle(2, 0x9a835a);
-      face.arc(0, 23, 13, Math.PI, Math.PI * 2);
-      face.lineStyle(0);
-    } else {
-      face.lineStyle(2, 0x5d4037);
-      face.moveTo(-12, 17);
-      face.lineTo(12, 17);
-      face.lineStyle(0);
-    }
-    root.addChild(face);
-  }
-
-  return root;
+  return { root, face };
 }
+/** Draw or update face graphics (eyes + mouth) based on emotion. */
+function drawFaceGraphics(face: Graphics, emotion: OmegaEmotion) {
+  face.clear();
+  const eyeColor = emotion === "sad" || emotion === "calm_negative" ? 0x9a835a : 0x5d4037;
+
+  face.beginFill(eyeColor);
+  face.drawRoundedRect(-26, -10, 13, 5, 3);
+  face.drawRoundedRect(13, -10, 13, 5, 3);
+  face.endFill();
+
+  if (emotion === "happy" || emotion === "proud") {
+    face.lineStyle(2, 0x5d4037);
+    face.arc(0, 10, 16, 0, Math.PI);
+    face.lineStyle(0);
+  } else if (emotion === "sad") {
+    face.lineStyle(2, 0x9a835a);
+    face.arc(0, 23, 13, Math.PI, Math.PI * 2);
+    face.lineStyle(0);
+  } else {
+    face.lineStyle(2, 0x5d4037);
+    face.moveTo(-12, 17);
+    face.lineTo(12, 17);
+    face.lineStyle(0);
+  }
+}
+

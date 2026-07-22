@@ -46,8 +46,13 @@ async function createAndAttachModel(
   const model = await PixiL2D.from(path, { autoUpdate: true, autoInteract: true });
   model.anchor.set(0.5, 0.5);
 
-  const w = app.screen.width || 360;
-  const h = app.screen.height || 520;
+  // Guard: app.destroy() sets renderer=null, which makes app.screen getter crash
+  if (!app || !app.renderer) {
+    console.warn("[Live2D] app destroyed before model finished loading");
+    return model;
+  }
+  const screenW = app.screen.width;
+  const screenH = app.screen.height;
 
   let cw = 2048, ch = 2048;
   const im = model.internalModel as any;
@@ -56,9 +61,9 @@ async function createAndAttachModel(
     ch = im.canvasSize[1];
   }
 
-  const s = Math.min((w * 0.75) / cw, (h * 0.85) / ch) * scale;
+  const s = Math.min((screenW * 0.75) / cw, (screenH * 0.85) / ch) * scale;
   model.scale.set(s);
-  model.position.set(w / 2, h / 2);
+  model.position.set(screenW / 2, screenH / 2);
   app.stage.addChild(model);
 
   setModelExpression(model, emotion);

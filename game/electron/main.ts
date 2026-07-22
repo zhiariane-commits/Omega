@@ -193,7 +193,6 @@ function createFloatingWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      webSecurity: false
     }
   });
 
@@ -230,7 +229,6 @@ function createCapsuleWindow(prologue = false) {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      webSecurity: false
     }
   });
 

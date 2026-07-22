@@ -49,6 +49,7 @@ export default function Room2Scene({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<Application | null>(null);
   const playerRef = useRef<Container | null>(null);
+  const faceRef = useRef<Graphics | null>(null);
   const decorRef = useRef<Container | null>(null);
   const positionRef = useRef<Position>({ x: 512, y: 400 });
   const keysRef = useRef(new Set<string>());
@@ -197,6 +198,10 @@ export default function Room2Scene({
         /* fallback */
       }
       const player = drawOmegaFallback(emotion, omegaTexture);
+      const faceG = new Graphics();
+      drawFaceGraphicsRoom2(faceG, emotion);
+      faceRef.current = faceG;
+      player.addChild(faceG);
       player.position.set(positionRef.current.x, positionRef.current.y);
       playerRef.current = player;
       app.stage.addChild(player);
@@ -270,7 +275,14 @@ export default function Room2Scene({
     }
 
     void init();
-    return () => {
+    // --- Reactive face updates when emotion changes ---
+  useEffect(() => {
+    if (faceRef.current) {
+      drawFaceGraphicsRoom2(faceRef.current, emotion);
+    }
+  }, [emotion]);
+
+  return () => {
       disposed = true;
       window.removeEventListener("keydown", keyDown);
       window.removeEventListener("keyup", keyUp);
@@ -479,6 +491,29 @@ function loadImageAsTexture(_renderer: any, url: string): Promise<Texture> {
     img.onerror = reject;
     img.src = url;
   });
+}
+
+function drawFaceGraphicsRoom2(face: Graphics, emotion: OmegaEmotion) {
+  face.clear();
+  const eyeColor = emotion === "sad" || emotion === "calm_negative" ? 0x9a835a : 0x5d4037;
+  face.beginFill(eyeColor);
+  face.drawRoundedRect(-18, -8, 10, 4, 2);
+  face.drawRoundedRect(8, -8, 10, 4, 2);
+  face.endFill();
+  if (emotion === "happy" || emotion === "proud") {
+    face.lineStyle(2, 0x5d4037);
+    face.arc(0, 8, 14, 0, Math.PI);
+    face.lineStyle(0);
+  } else if (emotion === "sad") {
+    face.lineStyle(2, 0x9a835a);
+    face.arc(0, 20, 11, Math.PI, Math.PI * 2);
+    face.lineStyle(0);
+  } else {
+    face.lineStyle(2, 0x5d4037);
+    face.moveTo(-10, 14);
+    face.lineTo(10, 14);
+    face.lineStyle(0);
+  }
 }
 
 function drawOmegaFallback(emotion: OmegaEmotion, texture?: Texture) {
