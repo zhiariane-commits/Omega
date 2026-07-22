@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+﻿import { useEffect, useRef } from "react";
 import * as PIXI from "pixi.js";
 import { Live2DModel as PixiL2D } from "pixi-live2d-display/cubism4";
 PixiL2D.registerTicker(PIXI.Ticker);
@@ -18,7 +18,7 @@ interface Live2DModelProps {
 const modelPaths: Record<AnimationId, string> = {
   idle: "/live2d/omega/omega.model3.json",
   click: "/live2d/click/click.model3.json",
-  angry: "/live2d/angry/angry.model3.json",
+  angry: "/live2d/omega/omega.model3.json",
 };
 
 const expressionNames: Record<string, string> = {
@@ -151,6 +151,14 @@ export default function OmegaLive2DModel({
     const path = modelPaths[animationId];
     if (!path) return;
 
+    // angry 和 idle 都用 omega 模型，只需播放动作，不需销毁重建
+    if ((animationId === "angry" || animationId === "idle") && modelRef.current) {
+      if (animationId === "angry") {
+        try { modelRef.current.motion("angry"); } catch {}
+      }
+      return;
+    }
+
     if (modelRef.current) {
       try { modelRef.current.destroy(); } catch {}
       modelRef.current = null;
@@ -177,22 +185,17 @@ export default function OmegaLive2DModel({
     const m = modelRef.current;
     if (!m) return;
     try {
-      // ֻ��������ת�������ƶ�ͷ��������
       const eyeX = -(mousePos.x - 0.5) * 12;
       const eyeY = (mousePos.y - 0.5) * 12;
 
-      // ͨ�� coreModel.setParameterValueById ֻ�����������?
       const core = m.internalModel?.coreModel;
       if (core && typeof core.setParameterValueById === "function") {
         core.setParameterValueById("ParamEyeBallX", eyeX);
         core.setParameterValueById("ParamEyeBallY", eyeY);
-        // ��ͷ��������Ƕȹ��㣬��ֹ���?focus() ֵ����
-        // 头部随鼠标小范围转动（不锁死，让物理引擎也能驱动头发摆动）
         const angleX = -(mousePos.x - 0.5) * 10;
         const angleY = (mousePos.y - 0.5) * 6;
         core.setParameterValueById("ParamAngleX", angleX);
         core.setParameterValueById("ParamAngleY", angleY);
-        // 不碰 ParamAngleZ / ParamBodyAngleX/Y，让物理/自动动画自由驱动
       }
     } catch {}
   }, [mousePos]);
