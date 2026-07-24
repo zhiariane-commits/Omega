@@ -1,5 +1,5 @@
-// 杩欐槸浣犵殑鍏ㄥ眬绫诲瀷瀹氫箟鏂囦欢
-// 鎵€鏈夊湪澶氫釜缁勪欢涓娇鐢ㄧ殑绫诲瀷閮藉簲璇ュ湪杩欓噷瀹氫箟
+﻿// 类型定义文件
+// 包含游戏中的所有共享类型和 window.omega 全局声明
 
 export type OmegaEmotion =
   | "calm_positive"
@@ -11,7 +11,7 @@ export type OmegaEmotion =
   | "excited"
   | "fearful";
 
-/** 寰呮満鐘舵€佷笅 惟 鍙兘鎵ц鐨勯殢鏈鸿涓?*/
+/** 待机行为类型 */
 export type OmegaIdleAction =
   | "follow_mouse"
   | "stare"
@@ -21,7 +21,7 @@ export type OmegaIdleAction =
   | "wooden_sign"
   | "sleep";
 
-/** 浜插瘑搴︽。浣?*/
+/** 亲密度档位 */
 export type AffectionLevel = "low" | "medium" | "high";
 
 export type OmegaStory = {
@@ -42,6 +42,7 @@ export type ChatLine = {
 
 export type OmegaAIResponse = {
   reply: string;
+  narrativeChoices?: string[];
   emotion: OmegaEmotion;
   moodDelta: number;
   affinityDelta: number;
@@ -68,15 +69,15 @@ export type OmegaState = {
     construction: boolean;
     gardening: boolean;
   };
-  /** 宸茶喘涔扮殑鍚堟垚鏈虹墿鍝?ID 鍒楄〃 */
+  /** 已购买物品 ID 列表 */
   purchasedItems: string[];
-  /** 澶┖鑸辫楗扮姸鎬?*/
+  /** 太空舱装饰映射 slot->value */
   capsuleDecoration: Record<string, string>;
-  /** 褰撳墠閰嶈鐨勫お绌鸿埍瑁呴グ锛宻lot -> recipeId */
+  /** 已装备装饰 slot -> recipeId */
   equippedDecorations: Record<string, string>;
-  /** 惟 鍐欒繃鐨勬晠浜嬪垪琛?*/
+  /** Ω 写的故事 */
   stories: OmegaStory[];
-  /** 绗簩鎴块棿鏄惁宸茶В閿?*/
+  /** 房间2是否解锁 */
   room2Unlocked: boolean;
   /** room2 furniture positions */
   room2Furniture: Record<string, { x: number; y: number }>;
@@ -85,17 +86,17 @@ export type OmegaState = {
   totalFocusTime: number;
   pendingStoryComplete: boolean;
   capsuleBackgroundDirty: boolean;
-  /** 褰撳墠姝ｅ湪鎵ц鐨勫緟鏈鸿涓?*/
+  /** 当前待机行为 */
   currentIdleAction: OmegaIdleAction;
-  /** 褰撳墠琛屼负鐨勫紑濮嬫椂闂存埑 */
+  /** 待机行为开始时间戳 */
   idleActionStart: number;
-  /** 褰撳墠琛屼负鐨勬寔缁椂闂达紙ms锛?*/
+  /** 待机行为持续时间 ms */
   idleActionDuration: number;
-  /** 宸插畬鎴愮殑閲岀▼纰戝垪琛?*/
+  /** 已完成的里程碑 ID 列表 */
   completedMilestones: string[];
-  /** 鏈€杩戜竴娆′富鍔ㄦ墦鎷涘懠鐨勬椂闂存埑 */
+  /** 上次打招呼时间 */
   lastGreetingTime: number;
-  /** 寰呭鐞嗙殑閲岀▼纰戜簨浠舵皵娉?*/
+  /** 待处理的里程碑事件 */
   pendingMilestoneEvent: string | null;
 };
 
@@ -104,7 +105,7 @@ export type PersistedData = {
   memories: string[];
 };
 
-// 鍏ㄥ眬 window.omega 绫诲瀷澹版槑
+// window.omega 全局声明
 declare global {
   interface Window {
     omega: {
@@ -128,9 +129,12 @@ declare global {
       ai: {
         sendMessage: (payload: { text: string; includeScreenshot: boolean }) => Promise<OmegaAIResponse & { state: OmegaState }>;
       };
+      /** 提词器 Agent：根据 Ω 的发言生成玩家回复选项 */
+      options?: {
+        generate: (omegaText: string, history?: ChatLine[]) => Promise<string[]>;
+      };
     };
   }
 }
 
 export {};
-

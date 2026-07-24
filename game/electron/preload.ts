@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+﻿import { contextBridge, ipcRenderer } from "electron";
 
 const omegaApi = {
   window: {
@@ -24,6 +24,11 @@ const omegaApi = {
   ai: {
     sendMessage: (payload: { text: string; includeScreenshot: boolean }) =>
       ipcRenderer.invoke("ai:sendMessage", payload)
+  },
+  // 提词器 Agent：根据 Ω 的发言生成玩家回复选项
+  options: {
+    generate: (omegaText: string, history?: { speaker: string; text: string; createdAt: string }[]) =>
+      ipcRenderer.invoke("options:generate", { omegaText, history: history ?? [] })
   },
   onShowContextMenu: (callback: () => void) => {
     ipcRenderer.on("show-context-menu", () => callback());

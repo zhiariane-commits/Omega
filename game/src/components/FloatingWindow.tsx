@@ -16,13 +16,8 @@ import {
   pickPeriodicTopic,
   ALL_MILESTONES,
 } from "../systems/storyMilestones";
-import {
-  pickNarrativeEntry,
-  getNarrativeNode,
-  followNarrativeOption,
-  type NarrativeNode,
-  type NarrativeOption,
-} from "../systems/narrative";
+import { generateOptions } from "../systems/optionAgent";
+import type { AgentOption } from "../systems/optionAgent";
 
 type Props = {
   state: OmegaState;
@@ -86,17 +81,20 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   const [moodFlash, setMoodFlash] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
   const [clickBubble, setClickBubble] = useState<string | null>(null);
-  const [narrativeNodeId, setNarrativeNodeId] = useState<string | null>(null);
-  const [narrativeOptions, setNarrativeOptions] = useState<NarrativeOption[]>([]);
+  const [agentOptions, setAgentOptions] = useState<AgentOption[]>([]);
 
-  // ---------- 叙事系统 ----------
-  const pickNarrativeNode = useCallback(() => {
-    const entry = pickNarrativeEntry(stateRef.current);
-    if (!entry) { setNarrativeNodeId(null); setNarrativeOptions([]); return; }
-    const node = getNarrativeNode(entry.firstNodeId);
-    if (node) { setNarrativeNodeId(node.id); setNarrativeOptions(node.options.slice(0, 3)); }
+
+  // ---------- 提词器 Agent：根据 Omega 的发言为玩家生成 3 个回复选项 ----------
+  const generateAgentOptions = useCallback(async (lastOmegaText?: string) => {
+    try {
+      const omegaText = lastOmegaText ?? '';
+      if (!omegaText) { setAgentOptions([]); return; }
+      const opts = await generateOptions(omegaText, stateRef.current, sessionLog);
+      setAgentOptions(opts);
+    } catch {
+      setAgentOptions([]);
+    }
   }, []);
-
   const busyRef = useRef(false);
   busyRef.current = busy;
   const [animation, setAnimation] = useState<AnimationId>("idle");
@@ -120,7 +118,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   const sendMessageWithText = useCallback(async (text: string) => {
     if (!text.trim() || busyRef.current) return;
     setBusy(true);
-    setNarrativeOptions([]);
+    setAgentOptions([]);
     try {
       const response = (await window.omega.ai.sendMessage({
         text: text.trim(),
@@ -132,14 +130,15 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       );
       setTimeout(() => setMoodFlash(null), 1100);
       await refreshLog();
-      setTimeout(() => pickNarrativeNode(), 200);
+      // 提词器 Agent：根据 Omega 的发言为玩家生成 3 个回复选项
+      generateAgentOptions(response.reply);
       if (response.featureIntent === "capsule") {
         await window.omega.window.openCapsule();
       }
     } finally {
       setBusy(false);
     }
-  }, [includeScreenshot, setState, refreshLog, pickNarrativeNode]);
+  }, [includeScreenshot, setState, refreshLog, generateAgentOptions]);
 
   // ---------- 鼠标视线跟随 ----------
   useEffect(() => {
@@ -353,7 +352,9 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
     if (nextPanel === "chat") {
       await updateState({ currentMode: "chatting" });
       await refreshLog();
-      pickNarrativeNode();
+      const log = await window.omega.state.getSessionLog();
+      const lastOmega = [...log].reverse().find(l => l.speaker === 'omega');
+      generateAgentOptions(lastOmega?.text);
     }
     wakeUp();
   }
@@ -694,9 +695,9 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
             )}
           </div>
           {/* 叙事选项 */}
-          {narrativeOptions.length > 0 && !busy && (
+          {agentOptions.length > 0 && !busy && (
             <div className="narrative-options">
-              {narrativeOptions.map((opt, idx) => (
+              {agentOptions.map((opt, idx) => (
                 <button
                   key={idx}
                   type="button"

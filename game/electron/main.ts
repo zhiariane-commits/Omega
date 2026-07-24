@@ -23,6 +23,8 @@ type ChatLine = {
 
 type OmegaAIResponse = {
   reply: string;
+  narrative?: string;
+  narrativeChoices?: string[];
   emotion: OmegaEmotion;
   moodDelta: number;
   affinityDelta: number;
@@ -291,12 +293,20 @@ function localOmegaResponse(text: string, includeScreenshot: boolean): OmegaAIRe
                 ? `嗯，我也有一点开心。像是舱壁上的灯忽然稳定了一些。${screenNote}`
                 : `我在。你说的话会被我认真收起来，虽然我还不太擅长把感谢说得自然。${screenNote}`;
 
+      const nChoices = sad
+    ? ["???????", "???????", "??????", "????????"]
+    : happy
+      ? ["?????????", "?????????", "?????????", "?????"]
+      : featureIntent === "capsule"
+        ? ["????????", "???????", "???????", "??????"]
+        : ["???????", "???????", "????????", "??????"]
+
   return {
     reply,
     emotion,
     moodDelta: sad ? -1 : 1,
     affinityDelta: sad ? 0 : 1,
-    memorySummary: text.length > 8 ? `玩家提到：${text.slice(0, 80)}` : undefined,
+    memorySummary: text.length > 8 ? `?????${text.slice(0, 80)}` : undefined,
     featureIntent
   };
 }
@@ -336,6 +346,7 @@ function normalizeAIResponse(response: Partial<OmegaAIResponse> | null, fallback
 
   return {
     reply: String(response.reply).slice(0, 600),
+
     emotion,
     moodDelta: Number.isFinite(response.moodDelta) ? Math.max(-5, Math.min(5, Math.round(response.moodDelta ?? 0))) : 0,
     affinityDelta: Number.isFinite(response.affinityDelta)
@@ -352,13 +363,24 @@ async function cloudOmegaResponse(text: string, screenshot?: string): Promise<Om
   const baseUrl = (process.env.MIMO_BASE_URL ?? process.env.OPENAI_BASE_URL ?? "https://api.xiaomimimo.com/v1").replace(/\/$/, "");
   const model = process.env.MIMO_MODEL ?? process.env.OPENAI_MODEL ?? "mimo-v2-flash";
 
+  // Build conversation history from sessionLog (last 6 turns = 12 messages)
+  const historyMessages: Array<Record<string, unknown>> = sessionLog.slice(-12).map((entry) => ({
+    role: entry.speaker === "omega" ? "assistant" : "user",
+    content: entry.speaker === "omega" ? entry.text : entry.text
+  }));
+
+  const memoryContext = persisted.memories.length > 0
+    ? "??????\n" + persisted.memories.slice(-5).join("\n")
+    : "";
+
   const userContent: Array<Record<string, unknown>> = [
-    { type: "text", text: `长期记忆：${persisted.memories.slice(-8).join(" / ") || "暂无"}` },
-    { type: "text", text: `玩家：${text}` }
+    { type: "text", text: memoryContext },
+    { type: "text", text: "????" + text },
+    { type: "text", text: "????????? narrativeChoices?2-4???????????????????????????" }
   ];
 
   if (screenshot) {
-    userContent.push({ type: "text", text: "玩家允许读取当前屏幕截图。请把截图当作Ω看到的另一个世界的画面来理解。" });
+    userContent.push({ type: "text", text: "???????????????????????????????????" });
     userContent.push({ type: "image_url", image_url: { url: screenshot } });
   }
 
@@ -375,8 +397,9 @@ async function cloudOmegaResponse(text: string, screenshot?: string): Promise<Om
           {
             role: "system",
             content:
-              "你是桌宠游戏角色Ω。用中文、简短、内向但温柔的语气回应玩家。必须只返回JSON，不要Markdown。字段为 reply, emotion, moodDelta, affinityDelta, memorySummary, featureIntent。emotion只能是 calm_positive, calm_negative, happy, shy, sad, proud, excited, fearful。featureIntent只能是 alarm, focus, capsule, game, null。"
+              "???????????????????????????????????JSON???Markdown???? reply, emotion, moodDelta, affinityDelta, memorySummary, featureIntent, narrativeChoices?emotion??? calm_positive, calm_negative, happy, shy, sad, proud, excited, fearful?featureIntent??? alarm, focus, capsule, game, null?"
           },
+          ...historyMessages,
           { role: "user", content: userContent }
         ],
         temperature: 0.8,
@@ -388,6 +411,76 @@ async function cloudOmegaResponse(text: string, screenshot?: string): Promise<Om
     const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const raw = data.choices?.[0]?.message?.content ?? "";
     return normalizeAIResponse(parseJsonResponse(raw), text);
+  } catch {
+    return null;
+  }
+}
+
+
+/**
+ * 云端提词器：用 AI 生成玩家回复选项
+ */
+async function cloudOmegaOptions(omegaText: string): Promise<string[] | null> {
+  const apiKey = process.env.MIMO_API_KEY ?? process.env.OPENAI_API_KEY;
+  const baseUrl = (process.env.MIMO_BASE_URL ?? process.env.OPENAI_BASE_URL ?? "").replace(/\/+$/, "");
+  const model = process.env.MIMO_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+  if (!apiKey) return null;
+
+  try {
+    const response = await fetch(baseUrl + "/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: "system",
+            content: `你是一个桌面宠物 Omega（惟）的提词器。你的任务是根据 Omega 刚刚对用户说的话，为用户模拟 3 个自然、符合语境的回复选项。
+
+参考以下对话样本的风格：
+【示例 1】
+Omega: 你来了。我刚刚在看窗外的星星……这里的夜晚总是很长。
+玩家选项:
+- 「这里的夜晚有多长？」
+- 「你每天都看星星吗？」
+- 「我陪你一会儿。」
+
+【示例 2】
+Omega: 嗯……大概有二十多个小时吧。有时候我会盯着舷窗，等天亮等到忘了时间。
+玩家选项:
+- 「听起来好孤独。」
+- 「那白天是不是也很长？」
+- 「下次天亮我陪你一起等。」
+
+【示例 3】
+Omega: 因为这里能看到很多星星——比你们的夜空多得多。
+玩家选项:
+- 「能指给我看哪颗最漂亮吗？」
+- 「它们确实挺像在陪你的。」
+- 「你认识它们的名字吗？」
+
+要求：
+- 输出 JSON 格式：{ "options": ["选项1", "选项2", "选项3"] }
+- 每个选项以「」包裹，长度 6-20 字
+- 选项要多样化：一个共情回应、一个追问探索、一个行动/互动
+- 不要评价 Omega 的话，只是从玩家角度提供可能的回应
+- 用中文简体`
+          },
+          { role: "user", content: omegaText }
+        ],
+        temperature: 0.7,
+        response_format: { type: "json_object" }
+      })
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content ?? "";
+    const parsed = JSON.parse(raw);
+    if (parsed?.options && Array.isArray(parsed.options) && parsed.options.length >= 2) {
+      return parsed.options.slice(0, 3).map(String);
+    }
+    return null;
   } catch {
     return null;
   }
@@ -488,4 +581,14 @@ ipcMain.handle("ai:sendMessage", async (_event, payload: { text: string; include
   }
   await savePersistedData();
   return { ...aiResponse, state: persisted.state, screenshotCaptured: Boolean(screenshot) };
+});
+/**
+ * 提词器 Agent：本地生成三个回复选项
+ * 根据 Ω 的发言文本 + 游戏状态启发式生成
+ */
+
+ipcMain.handle("options:generate", async (_event, payload: { omegaText: string }) => {
+  const aiOptions = await cloudOmegaOptions(payload.omegaText).catch(() => null);
+  if (aiOptions && aiOptions.length >= 2) return aiOptions;
+  return [];
 });
