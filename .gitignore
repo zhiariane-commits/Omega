@@ -8,3 +8,5 @@ dist-electron/
 *.zip
 playwright-report/
 test-results/
+
+nul

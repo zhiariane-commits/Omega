@@ -89,8 +89,11 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   const generateAgentOptions = useCallback(async (lastOmegaText?: string) => {
     try {
       const omegaText = lastOmegaText ?? '';
+      console.log('[OptionsAgent] received text:', omegaText?.slice(0, 50));
       if (!omegaText) { setAgentOptions([]); return; }
+      console.log('[OptionsAgent] calling generateOptions...');
       const opts = await generateOptions(omegaText, stateRef.current, sessionLog);
+      console.log('[OptionsAgent] result:', opts);
       setAgentOptions(opts);
     } catch {
       setAgentOptions([]);
@@ -132,6 +135,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       setTimeout(() => setMoodFlash(null), 1100);
       await refreshLog();
       // 提词器 Agent：根据 Omega 的发言为玩家生成 3 个回复选项
+      console.log('[OptionsAgent] response.reply:', response.reply);
       generateAgentOptions(response.reply);
       if (response.featureIntent === "capsule") {
         await window.omega.window.openCapsule();
@@ -678,7 +682,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
 
       {/* 聊天面板 */}
       {panel === "chat" && (
-        <section className="dialogue-bubble chat-panel" aria-label="Ω 对话">
+        <section className="dialogue-bubble chat-panel" style={{ position: "fixed", left: 24, right: "calc(50% + 150px)", bottom: "calc(100vh - 300px)" }} aria-label="Ω 对话">
           <button
             className="dialogue-close"
             type="button"
@@ -1266,3 +1270,7 @@ function DraggablePanel({
     </section>
   );
 }
+
+
+
+

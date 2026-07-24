@@ -92,12 +92,15 @@ export async function generateOptions(
   history: ChatLine[]
 ): Promise<AgentOption[]> {
   // AI 模式：调用 LLM 提词器；不可用时返回空数组（让玩家自由输入）
+  console.log("[OptionsAgent] checking window.omega.options?.generate:",
+    typeof window !== "undefined" && (window as any).omega?.options?.generate ? "EXISTS" : "NOT FOUND");
   if (typeof window !== "undefined" && (window as any).omega?.options?.generate) {
     try {
       const result: string[] = await (window as any).omega.options.generate(
         omegaText,
         history
       );
+      console.log("[OptionsAgent] AI returned:", result);
       if (Array.isArray(result) && result.length >= 2) {
         return result.slice(0, 3).map((text: string) => ({ text }));
       }
@@ -105,6 +108,7 @@ export async function generateOptions(
       // fall through
     }
   }
+  console.log("[OptionsAgent] returning empty - no options available");
   return [];
 }
 
@@ -124,6 +128,7 @@ export function extractOptionsFromResponse(
   ) {
     return response.narrativeChoices.slice(0, 3).map((text) => ({ text }));
   }
+  console.log("[OptionsAgent] returning empty - no options available");
   return [];
 }
 
