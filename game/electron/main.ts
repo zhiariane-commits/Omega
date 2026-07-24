@@ -245,7 +245,8 @@ function createCapsuleWindow(prologue = false) {
 }
 
 function createTray() {
-  const icon = nativeImage.createEmpty();
+  const iconPath = path.join(__dirname, "..", "omega_head.png");
+  const icon = nativeImage.createFromPath(iconPath).resize({ width: 32, height: 32 });
   tray = new Tray(icon);
   tray.setToolTip("Ω Desktop Pet");
   tray.setContextMenu(
@@ -649,3 +650,5 @@ ipcMain.handle("options:generate", async (_event, payload: { omegaText: string }
   if (aiOptions && aiOptions.length >= 2) return aiOptions;
   return [];
 });
+
+
