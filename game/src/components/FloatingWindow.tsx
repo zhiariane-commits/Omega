@@ -113,7 +113,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  const recentLines = useMemo(() => sessionLog.slice(-4), [sessionLog]);
+  const recentLines = useMemo(() => sessionLog.slice(-5), [sessionLog]);
 
   // 按亲密度档位计算的活力度（用于决定是否显示生气等）
   const affectionLevel = useMemo(() => getAffectionLevel(state.affinity), [state.affinity]);
@@ -682,7 +682,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
 
       {/* 聊天面板 */}
       {panel === "chat" && (
-        <section className="dialogue-bubble chat-panel" style={{ position: "fixed", left: 24, right: "calc(50% + 150px)", bottom: "calc(100vh - 300px)" }} aria-label="Ω 对话">
+        <section className="dialogue-bubble chat-panel" style={{ position: "fixed", left: 4, right: "calc(50vw + 60px)", bottom: "calc(100vh - 320px)", height: 300 }} aria-label="Ω 对话">
           <button
             className="dialogue-close"
             type="button"
@@ -694,7 +694,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
           >
             ×
           </button>
-          <div className="chat-stream" aria-live="polite">
+          <div className="chat-scroll-area"><div className="chat-stream" aria-live="polite">
             {recentLines.length === 0 && (
               <p className="empty-copy">Ω正在看着你这边的光。</p>
             )}
@@ -733,7 +733,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
               ))}
             </div>
           )}
-          <form className="chat-form" onSubmit={sendMessage}>
+          </div><form className="chat-form" onSubmit={sendMessage}>
             <label className="screen-toggle">
               <input
                 type="checkbox"
@@ -1270,6 +1270,11 @@ function DraggablePanel({
     </section>
   );
 }
+
+
+
+
+
 
 
 
