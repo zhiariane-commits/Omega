@@ -84,6 +84,8 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   const [agentOptions, setAgentOptions] = useState<AgentOption[]>([]);
   const [showDevTools, setShowDevTools] = useState(false);
   const [omegaBubbleText, setOmegaBubbleText] = useState<string | null>(null);
+  const [displayedChars, setDisplayedChars] = useState(0);
+  const [isTyping, setIsTyping] = useState(false);
 
 
   // ---------- 提词器 Agent：根据 Omega 的发言为玩家生成 3 个回复选项 ----------
@@ -147,6 +149,32 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
     }
   }, [includeScreenshot, setState, refreshLog, generateAgentOptions]);
 
+
+  // ---------- Typewriter effect for omega bubble ----------
+  useEffect(() => {
+    if (omegaBubbleText) {
+      setDisplayedChars(0);
+      setIsTyping(true);
+    } else {
+      setDisplayedChars(0);
+      setIsTyping(false);
+    }
+  }, [omegaBubbleText]);
+
+  useEffect(() => {
+    if (!isTyping || !omegaBubbleText) return;
+    const interval = setInterval(() => {
+      setDisplayedChars((prev) => {
+        if (prev >= omegaBubbleText!.length) {
+          clearInterval(interval);
+          setIsTyping(false);
+          return omegaBubbleText!.length;
+        }
+        return prev + 1;
+      });
+    }, 35);
+    return () => clearInterval(interval);
+  }, [isTyping, omegaBubbleText]);
   // ---------- 鼠标视线跟随 ----------
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -350,6 +378,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
     setSessionLog(log);
   }
 
+  const greetingShownRef = useRef(false);
   async function openPanel(nextPanel: typeof panel) {
     if (nextPanel && nextPanel !== "clickFeedback") {
       if (lowMoodBlock("panel")) return;
@@ -362,11 +391,14 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       const log = await window.omega.state.getSessionLog();
       const lastOmega = [...log].reverse().find(l => l.speaker === 'omega');
       let bubbleText = lastOmega?.text ?? null;
-      if (stateRef.current.completedMilestones.includes("m1_first_greeting") && stateRef.current.mood > 50) {
-        bubbleText = pickPeriodicTopic();
+      // Only show periodic topic on the first chat open of this launch
+      if (!greetingShownRef.current) {
+        greetingShownRef.current = true;
+        if (stateRef.current.completedMilestones.includes("m1_first_greeting") && stateRef.current.mood > 50) {
+          bubbleText = pickPeriodicTopic();
+        }
       }
       setOmegaBubbleText(bubbleText);
-      generateAgentOptions(lastOmega?.text);
     }
     wakeUp();
   }
@@ -501,12 +533,12 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
         </section>
       )}
 
-      {/* Ω 角色 */}
       {/* Omega chat bubble */}
+      {/* Ω 角色 */}
       {panel === "chat" && omegaBubbleText && (
         <section className="omega-chat-bubble">
-          <p>{omegaBubbleText}</p>
-          {busy && <span className="omega-chat-bubble__typing">...</span>}
+          <p>{omegaBubbleText.slice(0, displayedChars)}{isTyping ? "…" : ""}</p>
+          {isTyping && <span className="omega-chat-bubble__typing">………</span>}
         </section>
       )}
 
@@ -700,7 +732,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       {/* Chat controls below omega */}
       {panel === "chat" && (
         <section className="chat-controls">
-          {agentOptions.length > 0 && !busy && (
+          {agentOptions.length > 0 && !isTyping && !busy && (
             <div className="narrative-options">
               {agentOptions.map((opt, idx) => (
                 <button
@@ -1264,10 +1296,5 @@ function DraggablePanel({
     </section>
   );
 }
-
-
-
-
-
 
 

@@ -586,7 +586,7 @@
 .chat-controls {
   position: absolute;
   left: 50%;
-  bottom: 180px;
+  bottom: 80px;
   transform: translateX(-50%);
   z-index: 15;
   width: min(480px, calc(100vw - 48px));
