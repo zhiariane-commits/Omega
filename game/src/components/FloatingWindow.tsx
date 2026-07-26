@@ -113,6 +113,16 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   const idleCycleRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sleepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastActiveRef = useRef(state.lastActiveTime);
+  // ---------- 窗口拖拽状态 ----------
+  const dragState = useRef<{
+    active: boolean;
+    suppressClick: boolean;
+    startScreenX: number;
+    startScreenY: number;
+    startWinX: number;
+    startWinY: number;
+  }>({ active: false, suppressClick: false, startScreenX: 0, startScreenY: 0, startWinX: 0, startWinY: 0 });
+
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -449,6 +459,10 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
 
   // ---------- 点击头像 ----------
   function handleAvatarClick(e?: React.MouseEvent) {
+    if (dragState.current.suppressClick) {
+      dragState.current.suppressClick = false;
+      return;
+    }
     e?.stopPropagation();
     if (isLowMood(stateRef.current)) return; // 低心境时单击无反应
     // 同时触发情感反馈和菜单
@@ -459,6 +473,42 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
     wakeUp();
     setAnimation("click");
   }
+
+  // ---------- 头像拖拽窗口 ----------
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const ds = dragState.current;
+      if (!ds.active) return;
+
+      if (!ds.suppressClick) {
+        const dx = Math.abs(e.screenX - ds.startScreenX);
+        const dy = Math.abs(e.screenY - ds.startScreenY);
+        if (dx > 3 || dy > 3) {
+          ds.suppressClick = true;
+          ds.startScreenX = e.screenX;
+          ds.startScreenY = e.screenY;
+          ds.startWinX = window.screenX;
+          ds.startWinY = window.screenY;
+        }
+        return;
+      }
+
+      const dx = e.screenX - ds.startScreenX;
+      const dy = e.screenY - ds.startScreenY;
+      window.omega.window.setFloatingPosition(ds.startWinX + dx, ds.startWinY + dy);
+    };
+
+    const handleMouseUp = () => {
+      dragState.current.active = false;
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
 
   // ---------- ESC 关闭面板 ----------
   useEffect(() => {
@@ -560,6 +610,18 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
         }`}
         type="button"
         onClick={handleAvatarClick}
+        onMouseDown={(e) => {
+          if (e.button !== 0) return;
+          e.preventDefault();
+          dragState.current = {
+            active: true,
+            suppressClick: false,
+            startScreenX: e.screenX,
+            startScreenY: e.screenY,
+            startWinX: window.screenX,
+            startWinY: window.screenY,
+          };
+        }}
         aria-label="Ω"
         style={{
           transform: `translateX(-50%) translate(${
@@ -575,7 +637,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
         <Live2DModel
           animationId={animation}
           onAnimationEnd={handleAnimationEnd}
-          scale={0.65}
+          scale={0.85}
           emotion={state.emotion}
           mousePos={mousePos}
         />
