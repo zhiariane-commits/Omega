@@ -1018,6 +1018,25 @@ function DevPanel({
             })}
           </div>
         </div>
+
+        <hr className="dev-panel__divider" />
+
+        <div className="dev-panel__row">
+          <label>聊天记忆</label>
+          <div className="dev-panel__input-group">
+            <button
+              type="button"
+              onClick={async () => {
+                try { await window.omega.state.clearChatMemory(); } catch { /* ignore */ }
+                setClickBubble("本地聊天记忆已清除");
+                setTimeout(() => setClickBubble(null), 2000);
+              }}
+            >
+              一键清除聊天记忆
+            </button>
+          </div>
+          <span className="dev-panel__current">清空本次会话聊天记录和长期记忆</span>
+        </div>
       </div>
     </section>
   );

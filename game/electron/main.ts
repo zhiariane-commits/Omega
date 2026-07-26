@@ -730,6 +730,13 @@ ipcMain.handle("state:updateOmegaState", async (_event, partialState: Partial<Om
 
 ipcMain.handle("state:getSessionLog", () => [...sessionLog]);
 
+ipcMain.handle("state:clearChatMemory", () => {
+  sessionLog.length = 0;
+  persisted.memories = [];
+  void savePersistedData();
+  return true;
+});
+
 ipcMain.handle("memory:saveSummary", async (_event, summary: string) => {
   if (summary.trim()) {
     persisted.memories.push(summary.trim());
@@ -790,5 +797,6 @@ ipcMain.handle("options:generate", async (_event, payload: { omegaText: string }
   if (aiOptions && aiOptions.length >= 2) return aiOptions;
   return [];
 });
+
 
 

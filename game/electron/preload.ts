@@ -14,7 +14,8 @@ const omegaApi = {
     getOmegaState: () => ipcRenderer.invoke("state:getOmegaState"),
     updateOmegaState: (partialState: unknown) =>
       ipcRenderer.invoke("state:updateOmegaState", partialState),
-    getSessionLog: () => ipcRenderer.invoke("state:getSessionLog")
+    getSessionLog: () => ipcRenderer.invoke("state:getSessionLog"),
+    clearChatMemory: () => ipcRenderer.invoke("state:clearChatMemory")
   },
   memory: {
     saveSummary: (summary: string) =>
@@ -43,3 +44,4 @@ const omegaApi = {
 contextBridge.exposeInMainWorld("omega", omegaApi);
 
 export type OmegaBridge = typeof omegaApi;
+

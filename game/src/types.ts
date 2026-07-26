@@ -122,6 +122,7 @@ declare global {
         getOmegaState: () => Promise<OmegaState>;
         updateOmegaState: (partialState: Partial<OmegaState>) => Promise<OmegaState>;
         getSessionLog: () => Promise<ChatLine[]>;
+        clearChatMemory: () => Promise<boolean>;
       };
       memory: {
         saveSummary: (summary: string) => Promise<string[]>;
@@ -141,3 +142,4 @@ declare global {
 }
 
 export {};
+
