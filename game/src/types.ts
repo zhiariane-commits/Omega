@@ -1,4 +1,4 @@
-﻿// 类型定义文件
+// 类型定义文件
 // 包含游戏中的所有共享类型和 window.omega 全局声明
 
 export type OmegaEmotion =
@@ -116,6 +116,7 @@ declare global {
         showFloating: () => Promise<void>;
         hideFloating: () => Promise<void>;
         setFloatingPosition: (x: number, y: number) => Promise<void>;
+        setResizable: (resizable: boolean) => Promise<void>;
         quit: () => Promise<void>;
       };
       state: {

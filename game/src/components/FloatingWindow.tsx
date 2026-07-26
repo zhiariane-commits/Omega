@@ -499,6 +499,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
     };
 
     const handleMouseUp = () => {
+      window.omega.window.setResizable(true);
       dragState.current.active = false;
     };
 
@@ -613,6 +614,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
         onMouseDown={(e) => {
           if (e.button !== 0) return;
           e.preventDefault();
+          window.omega.window.setResizable(false);
           dragState.current = {
             active: true,
             suppressClick: false,

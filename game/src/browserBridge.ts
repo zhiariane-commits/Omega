@@ -1,4 +1,4 @@
-﻿import type { ChatLine, OmegaAIResponse, OmegaState } from "./types";
+import type { ChatLine, OmegaAIResponse, OmegaState } from "./types";
 
 const defaultState: OmegaState = {
   nickname: "",
@@ -178,6 +178,7 @@ export function installBrowserBridge() {
       showFloating: async () => routeTo("floating"),
       hideFloating: async () => undefined,
       setFloatingPosition: async () => undefined,
+      setResizable: async () => undefined,
       quit: async () => undefined
     },
     state: {

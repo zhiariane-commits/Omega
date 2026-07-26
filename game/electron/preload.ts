@@ -1,4 +1,4 @@
-﻿import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer } from "electron";
 
 const omegaApi = {
   window: {
@@ -8,7 +8,9 @@ const omegaApi = {
     setFloatingPosition: (x: number, y: number) =>
       ipcRenderer.invoke("window:setFloatingPosition", { x, y }),
     quit: () => ipcRenderer.invoke("window:quit"),
-    hideFloating: () => ipcRenderer.invoke("window:hideFloating")
+    hideFloating: () => ipcRenderer.invoke("window:hideFloating"),
+    setResizable: (resizable: boolean) =>
+      ipcRenderer.invoke("window:setResizable", resizable),
   },
   state: {
     getOmegaState: () => ipcRenderer.invoke("state:getOmegaState"),

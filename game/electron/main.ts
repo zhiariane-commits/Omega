@@ -1,4 +1,4 @@
-﻿import { app, BrowserWindow, desktopCapturer, ipcMain, Menu, nativeImage, Tray } from "electron";
+import { app, BrowserWindow, desktopCapturer, ipcMain, Menu, nativeImage, Tray } from "electron";
 import { readFile, writeFile } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -706,8 +706,17 @@ ipcMain.handle("window:hideFloating", () => {
 
 ipcMain.handle("window:setFloatingPosition", async (_event, position: { x: number; y: number }) => {
   persisted.state.floatingPosition = position;
-  floatingWindow?.setPosition(position.x, position.y);
+  floatingWindow?.setBounds({
+    x: position.x,
+    y: position.y,
+    width: 420,
+    height: 620,
+  });
   await savePersistedData();
+});
+
+ipcMain.handle("window:setResizable", async (_event, resizable: boolean) => {
+  floatingWindow?.setResizable(resizable);
 });
 
 ipcMain.handle("window:quit", () => {
