@@ -99,8 +99,9 @@ export default function OmegaLive2DModel({
         height: h,
         backgroundAlpha: 0,
         antialias: true,
-        resolution: window.devicePixelRatio || 1,
+        resolution: Math.max(window.devicePixelRatio || 1, 2),
         autoDensity: true,
+        roundPixels: true,
       });
       el.appendChild(app.view as HTMLCanvasElement);
       appRef.current = app;

@@ -142,7 +142,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
         includeScreenshot,
       })) as OmegaAIResponse;
       setState(response.state!);
-      if ((response as any).screenContext) console.log('[vision] 画面描述:', (response as any).screenContext);
+      console.log('[vision] screenContext:', (response as any).screenContext || '(empty - vision may have failed)');
       setMoodFlash(
         `${response.moodDelta >= 0 ? "+" : ""}${response.moodDelta}`
       );

@@ -1,8 +1,23 @@
-import { app, BrowserWindow, desktopCapturer, ipcMain, Menu, nativeImage, Tray } from "electron";
+﻿import { app, BrowserWindow, desktopCapturer, ipcMain, Menu, nativeImage, Tray } from "electron";
 import { readFile, writeFile } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
+try {
+  const envPath = path.join(__dirname, "..", ".env.local");
+  if (existsSync(envPath)) {
+    for (const line of readFileSync(envPath, "utf8").split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const sep = trimmed.indexOf("=");
+      if (sep === -1) continue;
+      const key = trimmed.slice(0, sep).trim();
+      const val = trimmed.slice(sep + 1).trim().replace(/^["']|["']$/g, "");
+      if (key && process.env[key] === undefined) process.env[key] = val;
+    }
+    console.log("[env] loaded .env.local");
+  }
+} catch (e) { console.warn("[env] failed to load .env.local:", e); }
 type OmegaEmotion =
   | "calm_positive"
   | "calm_negative"
@@ -396,18 +411,19 @@ function localOmegaResponse(text: string, includeScreenshot: boolean): OmegaAIRe
 async function capturePrimaryScreen() {
   const sources = await desktopCapturer.getSources({
     types: ["screen"],
-    thumbnailSize: { width: 1280, height: 720 }
+    thumbnailSize: { width: 640, height: 360 }
   });
   return sources[0]?.thumbnail.toDataURL();
 }
 async function describeScreenshot(dataUrl: string): Promise<string> {
+  console.log('[describeScreenshot] called, dataUrl length:', dataUrl?.length);
   const apiKey = process.env.VISION_API_KEY ?? process.env.MIMO_API_KEY ?? process.env.OPENAI_API_KEY;
-  if (!apiKey) return "";
+  if (!apiKey) return '[vision ERROR] No API key available (VISION_API_KEY/MIMO_API_KEY)';
   const baseUrl = (process.env.VISION_BASE_URL ?? process.env.MIMO_BASE_URL ?? process.env.OPENAI_BASE_URL ?? "https://api.xiaomimimo.com/v1").replace(/\/$/, "");
   const visionModel = process.env.VISION_MODEL ?? "mimo-v2.5";
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
     const response = await fetch(`${baseUrl}/chat/completions`, {
       signal: controller.signal,
       method: "POST",
@@ -422,11 +438,11 @@ async function describeScreenshot(dataUrl: string): Promise<string> {
       })
     });
     clearTimeout(timeoutId);
-    if (!response.ok) { console.error("[describeScreenshot] HTTP", response.status); return ""; }
+    if (!response.ok) { const errText = await response.text().catch(() => ""); console.error("[describeScreenshot] HTTP", response.status, errText.slice(0, 100)); return "[vision ERROR] HTTP " + response.status + ": " + errText.slice(0, 80); }
     const data = await response.json() as any;
     const desc = data?.choices?.[0]?.message?.content?.trim();
     return desc || "";
-  } catch (e) { console.error("[describeScreenshot] error:", e); return ""; }
+  } catch (e) { const errMsg = e instanceof Error ? e.message : String(e); console.error('[describeScreenshot] error:', errMsg); return '[vision ERROR] ' + errMsg; }
 }
 
 function parseJsonResponse(raw: string): OmegaAIResponse | null {
@@ -766,6 +782,7 @@ ipcMain.handle("ai:sendMessage", async (_event, payload: { text: string; include
     const screenshot = await capturePrimaryScreen().catch(() => undefined);
     if (screenshot) {
       floatingWindow?.webContents?.send("omega-thinking", "嗯……我得调试一下我这边的接收器，它有点慢。");
+      console.log('[vision] env check - VISION_API_KEY:', process.env.VISION_API_KEY ? 'exists' : 'MISSING', 'VISION_MODEL:', process.env.VISION_MODEL, 'MIMO_API_KEY:', process.env.MIMO_API_KEY ? 'exists' : 'MISSING');
       const visionResult = await describeScreenshot(screenshot);
       if (visionResult) {
         screenContext = visionResult;
