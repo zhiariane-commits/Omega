@@ -132,6 +132,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
         includeScreenshot,
       })) as OmegaAIResponse;
       setState(response.state!);
+      if ((response as any).screenContext) console.log('[vision] 画面描述:', (response as any).screenContext);
       setMoodFlash(
         `${response.moodDelta >= 0 ? "+" : ""}${response.moodDelta}`
       );
@@ -149,6 +150,17 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
     }
   }, [includeScreenshot, setState, refreshLog, generateAgentOptions]);
 
+
+  // ---------- 监听 vision 思考中提示 ----------
+  useEffect(() => {
+    const omega = (window as any).omega;
+    if (omega?.onOmegaThinking) {
+      const cleanup = omega.onOmegaThinking((msg: string) => {
+        setOmegaBubbleText(msg);
+      });
+      return cleanup;
+    }
+  }, []);
 
   // ---------- Typewriter effect for omega bubble ----------
   useEffect(() => {

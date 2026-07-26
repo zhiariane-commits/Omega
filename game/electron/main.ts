@@ -160,6 +160,87 @@ async function savePersistedData() {
   await writeFile(stateFile(), JSON.stringify(persisted, null, 2), "utf8");
 }
 
+/**
+ * 退出时打包本次会话记录 → 1~2 条记忆摘要
+ */
+function summarizeSessionLog(lines: ChatLine[]): string[] {
+  const playerLines = lines.filter((l) => l.speaker === "player" && l.text.length > 6);
+  const omegaLines = lines.filter((l) => l.speaker === "omega");
+
+  if (playerLines.length === 0 && omegaLines.length === 0) return [];
+
+  const summaries: string[] = [];
+
+  // 提取玩家提到的主要话题（去重，取前 5 条）
+  const topics = new Set<string>();
+  for (const p of playerLines) {
+    const cleaned = p.text.replace(/[「」【】《》""''，。！？、：；（）…\-\s]/g, "").slice(0, 30);
+    if (cleaned.length >= 4) topics.add(cleaned);
+  }
+  const topicList = [...topics].slice(0, 5);
+  if (topicList.length > 0) {
+    summaries.push("本次会话话题：" + topicList.join("、"));
+  }
+
+  // Omega 的情绪/状态变化
+  const omegaHighlights = omegaLines.filter((l) => l.text.length > 10).slice(-3);
+  if (omegaHighlights.length > 0) {
+    summaries.push("Ω 提到：" + omegaHighlights.map((l) => l.text.slice(0, 40)).join(" | "));
+  }
+
+  return summaries.slice(0, 2);
+}
+
+/**
+ * 从玩家消息中提取关键词（去掉常见停用词）
+ */
+function extractKeywords(text: string): string[] {
+  const stops = new Set([
+    "你", "我", "他", "她", "它", "我们", "你们", "他们", "这个", "那个", "什么",
+    "怎么", "为什么", "如何", "可以", "能", "会", "是", "的", "了", "在", "有",
+    "不", "就", "也", "都", "很", "还", "要", "让", "把", "被", "给", "跟", "和",
+    "吗", "吧", "呢", "啊", "哦", "嗯", "哈", "呀", "嘛", "好", "对", "到", "去",
+    "说", "想", "看", "知", "道", "觉", "得", "没", "来", "上", "下", "大", "小",
+    "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+    "have", "has", "had", "do", "does", "did", "will", "would", "could",
+    "can", "shall", "should", "may", "might", "i", "you", "he", "she", "it",
+    "we", "they", "me", "him", "her", "us", "them", "this", "that", "these",
+    "those", "am", "and", "or", "but", "not", "no"
+  ]);
+
+  // 按中英文分割
+  const tokens: string[] = [];
+  const chineseSegments = text.match(/[一-鿿]{2,}/g) || [];
+  const englishWords = text.toLowerCase().match(/[a-z]{3,}/g) || [];
+
+  for (const seg of chineseSegments) {
+    if (seg.length >= 2 && !stops.has(seg)) tokens.push(seg);
+  }
+  for (const w of englishWords) {
+    if (!stops.has(w)) tokens.push(w);
+  }
+
+  return [...new Set(tokens)];
+}
+
+/**
+ * 关键词匹配：从记忆中选取最相关的 1-3 条
+ */
+function filterMemoriesByKeywords(memories: string[], keywords: string[], maxCount = 3): string[] {
+  if (keywords.length === 0 || memories.length === 0) return [];
+
+  const scored = memories.map((mem) => {
+    const score = keywords.filter((kw) => mem.includes(kw)).length;
+    return { mem, score };
+  });
+
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .filter((s) => s.score > 0)
+    .slice(0, maxCount)
+    .map((s) => s.mem);
+}
+
 function rendererPath(view: "floating" | "capsule", prologue = false) {
   const query = `view=${view}${prologue ? "&prologue=1" : ""}`;
   if (isDev) {
@@ -319,6 +400,34 @@ async function capturePrimaryScreen() {
   });
   return sources[0]?.thumbnail.toDataURL();
 }
+async function describeScreenshot(dataUrl: string): Promise<string> {
+  const apiKey = process.env.VISION_API_KEY ?? process.env.MIMO_API_KEY ?? process.env.OPENAI_API_KEY;
+  if (!apiKey) return "";
+  const baseUrl = (process.env.VISION_BASE_URL ?? process.env.MIMO_BASE_URL ?? process.env.OPENAI_BASE_URL ?? "https://api.xiaomimimo.com/v1").replace(/\/$/, "");
+  const visionModel = process.env.VISION_MODEL ?? "mimo-v2.5";
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      signal: controller.signal,
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: visionModel,
+        messages: [
+          { role: "system", content: "直接描述这张截图的内容。" },
+          { role: "user", content: [{ type: "text", text: "请描述这张截图" }, { type: "image_url", image_url: { url: dataUrl } }] }
+        ],
+        max_tokens: 150
+      })
+    });
+    clearTimeout(timeoutId);
+    if (!response.ok) { console.error("[describeScreenshot] HTTP", response.status); return ""; }
+    const data = await response.json() as any;
+    const desc = data?.choices?.[0]?.message?.content?.trim();
+    return desc || "";
+  } catch (e) { console.error("[describeScreenshot] error:", e); return ""; }
+}
 
 function parseJsonResponse(raw: string): OmegaAIResponse | null {
   try {
@@ -365,14 +474,19 @@ async function cloudOmegaResponse(text: string, screenshot?: string): Promise<Om
   const model = process.env.MIMO_MODEL ?? process.env.OPENAI_MODEL ?? "mimo-v2-flash";
 
   // Build conversation history from sessionLog (last 6 turns = 12 messages)
-  const historyMessages: Array<Record<string, unknown>> = sessionLog.slice(-12).map((entry) => ({
+  const historyMessages: Array<Record<string, unknown>> = sessionLog.slice(-4).map((entry) => ({
     role: entry.speaker === "omega" ? "assistant" : "user",
     content: entry.speaker === "omega" ? entry.text : entry.text
   }));
 
-  const memoryContext = persisted.memories.length > 0
-    ? ("📝 记忆摘要：\n" + persisted.memories.slice(-5).join("\n"))
-    : "";
+  // 关键词匹配记忆：只在玩家提到相关内容时调取
+  const keywords = extractKeywords(text);
+  const relevantMemories = keywords.length > 0
+    ? filterMemoriesByKeywords(persisted.memories, keywords, 3)
+    : [];
+  const memoryContext = relevantMemories.length > 0
+    ? ("📝 相关记忆：\n" + relevantMemories.join("\n"))
+    : "（暂无相关历史记录）";
 
   const userContent: Array<Record<string, unknown>> = [
     { type: "text", text: memoryContext },
@@ -437,7 +551,7 @@ async function cloudOmegaResponse(text: string, screenshot?: string): Promise<Om
   "emotion": "当前情绪：calm_positive, calm_negative, happy, shy, sad, proud, excited, fearful",
   "moodDelta": "心境值变化，-5到5的整数",
   "affinityDelta": "好感度变化，-5到5的整数",
-  "memorySummary": "如需记住玩家说的话，写一句简短摘要（≤200字），否则不填",
+  "memorySummary": "如需记住玩家说的话，写一句简短摘要（≤200字，如：玩家对XX感兴趣/玩家提到XX），否则不填",
   "featureIntent": "功能意图：alarm, focus, capsule, game, null",
   "narrativeChoices": ["选项1", "选项2", "选项3"]
 }
@@ -556,6 +670,20 @@ app.whenReady().then(async () => {
 
 app.on("window-all-closed", () => {});
 
+// 退出时打包本次会话记忆
+app.on("before-quit", async () => {
+  if (sessionLog.length > 4) {
+    const summaries = summarizeSessionLog(sessionLog);
+    for (const s of summaries) {
+      if (s.trim()) {
+        persisted.memories.push(s.trim());
+      }
+    }
+    persisted.memories = persisted.memories.slice(-100);
+    await savePersistedData();
+  }
+});
+
 ipcMain.handle("window:openCapsule", () => {
   persisted.state.currentMode = "capsule";
   void savePersistedData();
@@ -616,8 +744,25 @@ ipcMain.handle("memory:getSummaries", () => persisted.memories);
 ipcMain.handle("ai:sendMessage", async (_event, payload: { text: string; includeScreenshot: boolean }) => {
   const createdAt = new Date().toISOString();
   sessionLog.push({ speaker: "player", text: payload.text, createdAt });
-  const screenshot = payload.includeScreenshot ? await capturePrimaryScreen().catch(() => undefined) : undefined;
-  const aiResponse = (await cloudOmegaResponse(payload.text, screenshot)) ?? localOmegaResponse(payload.text, Boolean(screenshot));
+  // visionAgent → Ω → optionsAgent 严格顺序
+  let screenContext = "";
+  if (payload.includeScreenshot) {
+    const screenshot = await capturePrimaryScreen().catch(() => undefined);
+    if (screenshot) {
+      floatingWindow?.webContents?.send("omega-thinking", "嗯……我得调试一下我这边的接收器，它有点慢。");
+      const visionResult = await describeScreenshot(screenshot);
+      if (visionResult) {
+        screenContext = visionResult;
+        console.log('[vision] description:', visionResult.slice(0, 100));
+      }
+    }
+  }
+  // 将截图描述作为文字上下文传给 Ω（MIMO），不传原始图片
+  const enhancedText = screenContext ? payload.text + '\n\n[屏幕识别] ' + screenContext : payload.text;
+  let aiResponse = await cloudOmegaResponse(enhancedText, undefined);
+  if (!aiResponse) {
+    aiResponse = localOmegaResponse(payload.text, Boolean(screenContext));
+  }
   const nextMood = clampMood(persisted.state.mood + aiResponse.moodDelta);
   const nextAffinity = Math.max(0, persisted.state.affinity + aiResponse.affinityDelta);
   persisted.state = {
@@ -636,13 +781,8 @@ ipcMain.handle("ai:sendMessage", async (_event, payload: { text: string; include
     persisted.memories = persisted.memories.slice(-100);
   }
   await savePersistedData();
-  return { ...aiResponse, state: persisted.state, screenshotCaptured: Boolean(screenshot) };
+  return { ...aiResponse, state: persisted.state, screenshotCaptured: Boolean(screenContext), screenContext: screenContext };
 });
-/**
- * 提词器 Agent：本地生成三个回复选项
- * 根据 Ω 的发言文本 + 游戏状态启发式生成
- */
-
 ipcMain.handle("options:generate", async (_event, payload: { omegaText: string }) => {
   console.log("[OptionsAgent IPC] received request, omegaText:", payload.omegaText?.slice(0, 50));
   const aiOptions = await cloudOmegaOptions(payload.omegaText).catch(() => null);

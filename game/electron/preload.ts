@@ -30,6 +30,10 @@ const omegaApi = {
     generate: (omegaText: string, history?: { speaker: string; text: string; createdAt: string }[]) =>
       ipcRenderer.invoke("options:generate", { omegaText, history: history ?? [] })
   },
+  onOmegaThinking: (callback: (msg: string) => void) => {
+    ipcRenderer.on("omega-thinking", (_event, msg) => callback(msg));
+    return () => { ipcRenderer.removeAllListeners("omega-thinking"); };
+  },
   onShowContextMenu: (callback: () => void) => {
     ipcRenderer.on("show-context-menu", () => callback());
     return () => { ipcRenderer.removeAllListeners("show-context-menu"); };

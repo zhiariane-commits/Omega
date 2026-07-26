@@ -50,6 +50,7 @@ export type OmegaAIResponse = {
   featureIntent?: FeatureIntent;
   state?: OmegaState;
   screenshotCaptured?: boolean;
+  screenContext?: string;
 };
 
 export type OmegaState = {
@@ -133,6 +134,8 @@ declare global {
       options?: {
         generate: (omegaText: string, history?: ChatLine[]) => Promise<string[]>;
       };
+      /** vision 思考中提示 */
+      onOmegaThinking?: (callback: (msg: string) => void) => () => void;
     };
   }
 }
