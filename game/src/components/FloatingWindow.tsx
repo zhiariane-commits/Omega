@@ -83,6 +83,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   const [clickBubble, setClickBubble] = useState<string | null>(null);
   const [agentOptions, setAgentOptions] = useState<AgentOption[]>([]);
   const [showDevTools, setShowDevTools] = useState(false);
+  const [omegaBubbleText, setOmegaBubbleText] = useState<string | null>(null);
 
 
   // ---------- 提词器 Agent：根据 Omega 的发言为玩家生成 3 个回复选项 ----------
@@ -136,6 +137,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       await refreshLog();
       // 提词器 Agent：根据 Omega 的发言为玩家生成 3 个回复选项
       console.log('[OptionsAgent] response.reply:', response.reply);
+      setOmegaBubbleText(response.reply);
       generateAgentOptions(response.reply);
       if (response.featureIntent === "capsule") {
         await window.omega.window.openCapsule();
@@ -359,6 +361,11 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       await refreshLog();
       const log = await window.omega.state.getSessionLog();
       const lastOmega = [...log].reverse().find(l => l.speaker === 'omega');
+      let bubbleText = lastOmega?.text ?? null;
+      if (stateRef.current.completedMilestones.includes("m1_first_greeting") && stateRef.current.mood > 50) {
+        bubbleText = pickPeriodicTopic();
+      }
+      setOmegaBubbleText(bubbleText);
       generateAgentOptions(lastOmega?.text);
     }
     wakeUp();
@@ -367,6 +374,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   const closePanel = useCallback(() => {
     setPanel(null);
     setMenu(null);
+    setOmegaBubbleText(null);
   }, []);
 
   // ---------- 发送消息 ----------
@@ -494,6 +502,14 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       )}
 
       {/* Ω 角色 */}
+      {/* Omega chat bubble */}
+      {panel === "chat" && omegaBubbleText && (
+        <section className="omega-chat-bubble">
+          <p>{omegaBubbleText}</p>
+          {busy && <span className="omega-chat-bubble__typing">...</span>}
+        </section>
+      )}
+
       <button
         className={`omega-avatar omega-avatar--${state.emotion} ${
           moodLocked ? "omega-avatar--exhausted" : ""
@@ -535,6 +551,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
           e.stopPropagation();
           closePanel();
           setMenu(null);
+    setOmegaBubbleText(null);
           setShowDevTools((v) => !v);
         }}
         aria-label="开发者选项"
@@ -680,42 +697,9 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
         </nav>
       )}
 
-      {/* 聊天面板 */}
+      {/* Chat controls below omega */}
       {panel === "chat" && (
-        <section className="dialogue-bubble chat-panel" style={{ position: "fixed", left: 4, right: "calc(50vw + 60px)", bottom: "calc(100vh - 320px)", height: 300 }} aria-label="Ω 对话">
-          <button
-            className="dialogue-close"
-            type="button"
-            aria-label="关闭聊天"
-            onClick={(e) => {
-              e?.stopPropagation();
-              closePanel();
-            }}
-          >
-            ×
-          </button>
-          <div className="chat-scroll-area"><div className="chat-stream" aria-live="polite">
-            {recentLines.length === 0 && (
-              <p className="empty-copy">Ω正在看着你这边的光。</p>
-            )}
-            {recentLines.map((line) => (
-              <p
-                className={`chat-line chat-line--${line.speaker}`}
-                key={`${line.createdAt}-${line.text}`}
-              >
-                <span>
-                  {line.speaker === "omega" ? "Ω" : state.nickname || "玩家"}
-                </span>
-                {line.text}
-              </p>
-            ))}
-            {busy && (
-              <p className="chat-line chat-line--omega">
-                <span>Ω</span>正在组织语言...
-              </p>
-            )}
-          </div>
-          {/* 叙事选项 */}
+        <section className="chat-controls">
           {agentOptions.length > 0 && !busy && (
             <div className="narrative-options">
               {agentOptions.map((opt, idx) => (
@@ -733,7 +717,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
               ))}
             </div>
           )}
-          </div><form className="chat-form" onSubmit={sendMessage}>
+          <form className="chat-form" onSubmit={sendMessage}>
             <label className="screen-toggle">
               <input
                 type="checkbox"
@@ -754,6 +738,16 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
             />
             <button type="submit" disabled={busy || moodLocked}>
               发送
+            </button>
+            <button
+              type="button"
+              className="chat-close-btn"
+              onClick={(e) => {
+                e?.stopPropagation();
+                closePanel();
+              }}
+            >
+              ✕
             </button>
           </form>
         </section>
@@ -1270,8 +1264,6 @@ function DraggablePanel({
     </section>
   );
 }
-
-
 
 
 
