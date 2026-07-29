@@ -313,71 +313,49 @@ function drawDecorationOverlay(
     stage.addChild(vignette);
   }
 
-  // Equipped wallpaper: subtle colored wall border glow
+  // Equipped wallpaper: emoji placeholder
   if (equipped.wallpaper || equipped.capsule_wallpaper) {
-    const wallGlow = new Graphics();
-    wallGlow.lineStyle(4, 0x88ccff, 0.15);
-    wallGlow.drawPolygon([
-      82, wallTop,
-      width - 82, wallTop,
-      width - 18, 135,
-      width - 78, wallBottom,
-      78, wallBottom,
-      18, 135,
-    ]);
-    wallGlow.lineStyle(0);
-    stage.addChild(wallGlow);
+    const text = new Text("🖼️", { fill: 0x88ccff, fontSize: 32 });
+    text.anchor.set(0.5);
+    text.position.set(width * 0.5, wallTop + 40);
+    text.alpha = 0.6;
+    stage.addChild(text);
   }
 
-  // Equipped floor: subtle floor accent
+  // Equipped floor: emoji placeholder
   if (equipped.floor || equipped.capsule_floor) {
-    const floorAccent = new Graphics();
-    floorAccent.beginFill(0x88ccff, 0.04);
-    floorAccent.drawPolygon([
-      78, wallBottom,
-      width - 78, wallBottom,
-      width - 168, height - 28,
-      168, height - 28,
-    ]);
-    floorAccent.endFill();
-    floorAccent.lineStyle(2, 0x88ccff, 0.12);
-    floorAccent.moveTo(78, wallBottom);
-    floorAccent.lineTo(width - 78, wallBottom);
-    floorAccent.lineStyle(0);
-    stage.addChild(floorAccent);
+    const text = new Text("🿫", { fill: 0x88ccff, fontSize: 28 });
+    text.anchor.set(0.5);
+    text.position.set(width * 0.5, wallBottom + 30);
+    text.alpha = 0.6;
+    stage.addChild(text);
   }
 
-  // Equipped desk ornament: small glowing dot on desk
+  // Equipped desk ornament: emoji placeholder
   if (equipped.desk_ornament || equipped.capsule_desk_ornament) {
-    const ornament = new Graphics();
-    ornament.beginFill(0x88ddff, 0.25);
-    ornament.drawCircle(cx + 100, deskY - 18, 10);
-    ornament.endFill();
-    ornament.lineStyle(1.5, 0x88ddff, 0.3);
-    ornament.drawCircle(cx + 100, deskY - 18, 10);
-    ornament.lineStyle(0);
-    stage.addChild(ornament);
+    const text = new Text("🎀", { fill: 0x88ddff, fontSize: 28 });
+    text.anchor.set(0.5);
+    text.position.set(cx + 100, deskY - 18);
+    text.alpha = 0.8;
+    stage.addChild(text);
   }
 
-  // Equipped window decoration: subtle light glow
+  // Equipped window decoration: emoji placeholder
   if (equipped.window || equipped.capsule_window) {
-    const windowDecor = new Graphics();
-    windowDecor.beginFill(0x00ccff, 0.06);
-    windowDecor.drawCircle(cx + 180, deskY - 70, 16);
-    windowDecor.endFill();
-    windowDecor.lineStyle(1, 0x00ccff, 0.15);
-    windowDecor.drawCircle(cx + 180, deskY - 70, 16);
-    windowDecor.lineStyle(0);
-    stage.addChild(windowDecor);
+    const text = new Text("🪟", { fill: 0x00ccff, fontSize: 28 });
+    text.anchor.set(0.5);
+    text.position.set(cx + 180, deskY - 70);
+    text.alpha = 0.7;
+    stage.addChild(text);
   }
 
-  // Equipped desk: subtle desk edge highlight
+  // Equipped desk: emoji placeholder
   if (equipped.desk || equipped.capsule_desk) {
-    const deskHighlight = new Graphics();
-    deskHighlight.lineStyle(2, 0x88ccff, 0.12);
-    deskHighlight.drawRoundedRect(cx - 160, deskY, 320, 42, 6);
-    deskHighlight.lineStyle(0);
-    stage.addChild(deskHighlight);
+    const text = new Text("🪑", { fill: 0x88ccff, fontSize: 28 });
+    text.anchor.set(0.5);
+    text.position.set(cx, deskY - 24);
+    text.alpha = 0.7;
+    stage.addChild(text);
   }
 }
 

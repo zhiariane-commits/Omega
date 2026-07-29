@@ -605,6 +605,12 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
         </section>
       )}
 
+      <p className="status-line">
+        Ω · {emotionLabel[state.emotion]} · 好感 {state.affinity}
+        {state.currentMode === "idle" && idleHint || state.currentMode === "focus" &&
+          ` · ${idleActionLabel[state.currentIdleAction] ?? ""}`}
+      </p>
+
       <button
         className={`omega-avatar omega-avatar--${state.emotion} ${
           moodLocked ? "omega-avatar--exhausted" : ""
@@ -645,13 +651,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
         />
       </button>
 
-      <p className="status-line">
-        Ω · {emotionLabel[state.emotion]} · 好感 {state.affinity}
-        {state.currentMode === "idle" && idleHint || state.currentMode === "focus" &&
-          ` · ${idleActionLabel[state.currentIdleAction] ?? ""}`}
-      </p>
-
-      {/* 开发者齿轮按钮 */}
+            {/* 开发者齿轮按钮 */}
       <button
         type="button"
         className="dev-gear-btn"

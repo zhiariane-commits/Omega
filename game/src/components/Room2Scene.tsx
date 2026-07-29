@@ -14,28 +14,16 @@ type Props = {
 
 type Position = { x: number; y: number };
 
-const DECO_COLORS: Record<string, number> = {
-  vase: 0xffeedd,
-  wall_lamp: 0xffdd88,
-  small_table: 0xccaa88,
-  window: 0x88ccff,
-  planet_model: 0x88aaff,
-  plant: 0x66dd88,
-  bean_bag: 0xee8844,
-  wardrobe: 0xaa8866,
-  record_player: 0x886644,
-};
-
-const DECO_LABELS: Record<string, string> = {
-  vase: "\u74F6",
-  wall_lamp: "\u706F",
-  small_table: "\u51E0",
-  window: "\u7A97",
-  planet_model: "\u661F",
-  plant: "\u690D",
-  bean_bag: "\u6C99",
-  wardrobe: "\u8863",
-  record_player: "\u5531",
+const DECO_EMOJIS: Record<string, string> = {
+  vase: "🏺",
+  wall_lamp: "💡",
+  small_table: "🪑",
+  window: "🪟",
+  planet_model: "🌍",
+  plant: "🌱",
+  bean_bag: "🛁",
+  wardrobe: "🧥",
+  record_player: "🎵",
 };
 
 export default function Room2Scene({
@@ -235,8 +223,7 @@ export default function Room2Scene({
           // Update preview
           preview.removeChildren();
           const itemId = placingId.current;
-          const color = DECO_COLORS[itemId] ?? 0x00ccff;
-          const label = DECO_LABELS[itemId] ?? "\u56FE";
+          const color = 0x00ccff;
           const previewG = new Graphics();
           previewG.beginFill(color, 0.3);
           previewG.drawRoundedRect(0, 0, 36, 36, 6);
@@ -399,7 +386,7 @@ export default function Room2Scene({
             ) : (
               ownedDecoItems.map((item) => {
                 const placed = furniture[item.id] != null;
-                const color = DECO_COLORS[item.id] ?? 0x00ccff;
+                const color = 0x00ccff;
                 return (
                   <button
                     key={item.id}
@@ -417,7 +404,7 @@ export default function Room2Scene({
                       className="room2-palette__swatch"
                       style={{ backgroundColor: `#${color.toString(16).padStart(6, "0")}` }}
                     >
-                      {DECO_LABELS[item.id] ?? "\u56FE"}
+                      {DECO_EMOJIS[item.id] ?? "\u2753"}
                     </span>
                     <span className="room2-palette__name">{item.name}</span>
                     {placed && <span className="room2-palette__badge">\u5DF2\u653E\u7F6E</span>}
@@ -448,35 +435,20 @@ function renderFurniture(
   furniture: Record<string, Position>
 ) {
   for (const [id, pos] of Object.entries(furniture)) {
-    const color = DECO_COLORS[id] ?? 0x00ccff;
-    const label = DECO_LABELS[id] ?? "\u56FE";
+    const emoji = DECO_EMOJIS[id] ?? "\u2753";
 
     // Perspective scaling: items higher up = smaller
     const scaleFactor = 0.5 + ((pos.y - 120) / (height - 160)) * 0.5;
-    const itemSize = Math.round(32 * scaleFactor);
+    const fontSize = Math.round(36 * scaleFactor);
 
-    const g = new Graphics();
-    g.beginFill(color, 0.25);
-    g.drawRoundedRect(0, 0, itemSize, itemSize, 6);
-    g.endFill();
-    g.lineStyle(1.5, color, 0.4);
-    g.drawRoundedRect(0, 0, itemSize, itemSize, 6);
-    g.lineStyle(0);
-
-    const t = new Text(label, {
-      fill: color,
-      fontSize: Math.round(itemSize * 0.45),
+    const t = new Text(emoji, {
+      fill: 0x00ccff,
+      fontSize: fontSize,
       fontWeight: "700",
     });
     t.anchor.set(0.5);
-    t.position.set(itemSize / 2, itemSize / 2);
-
-    const container = new Container();
-    container.addChild(g);
-    container.addChild(t);
-    container.position.set(pos.x - itemSize / 2, pos.y - itemSize / 2);
-    container.scale.set(scaleFactor);
-    layer.addChild(container);
+    t.position.set(pos.x, pos.y);
+    layer.addChild(t);
   }
 }
 
