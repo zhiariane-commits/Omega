@@ -241,7 +241,7 @@ export function CapsuleScene({
       appRef.current = null;
       hostElement.replaceChildren();
     };
-  }, [emotion, prologueDone, lowMood, mood, room2Unlocked, equippedDecorations, capsuleBackgroundDirty]);
+  }, [prologueDone, lowMood, mood, room2Unlocked, equippedDecorations, capsuleBackgroundDirty]);
 
   // Reactive face updates when emotion changes
   useEffect(() => {
