@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 import { Live2DModel as PixiL2D } from "pixi-live2d-display/cubism4";
 PixiL2D.registerTicker(PIXI.Ticker);
@@ -31,10 +31,26 @@ const expressionNames: Record<string, string> = {
   fearful: "fearful",
 };
 
+function getMouthOpenValue(emotion: string): number {
+  return emotion === "excited" || emotion === "fearful" ? 0.4 :
+         emotion === "happy" ? 0.1 :
+         emotion === "sad" ? 0.08 :
+         0;
+}
+
 function setModelExpression(model: any, emotion: string) {
   const name = expressionNames[emotion];
   if (!name) return;
   try { model.expression(name).catch(() => {}); } catch {}
+
+  // Directly set mouth parameter via low-level API
+  // (expression system alone may not override .moc3 default values)
+  try {
+    const core = model.internalModel?.coreModel;
+    if (core && typeof core.setParameterValueById === "function") {
+      core.setParameterValueById("ParamMouthOpenY", getMouthOpenValue(emotion));
+    }
+  } catch {}
 }
 
 async function createAndAttachModel(
@@ -78,6 +94,7 @@ export default function OmegaLive2DModel({
   mousePos = { x: 0.5, y: 0.5 },
   animationId = "idle",
 }: Live2DModelProps) {
+  const [modelReady, setModelReady] = useState(false);
   const divRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
   const modelRef = useRef<any>(null);
@@ -111,6 +128,7 @@ export default function OmegaLive2DModel({
     createAndAttachModel(app, path, scale, emotion)
       .then((model) => {
         modelRef.current = model;
+        setModelReady(true);
       })
       .catch((err) => console.error("[Live2D] load error:", err));
 
@@ -163,15 +181,54 @@ export default function OmegaLive2DModel({
       .then((model) => {
         modelRef.current = model;
         prevAnimRef.current = animationId;
+        setModelReady(true);
       })
       .catch((err) => console.error("[Live2D] switch error:", err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [animationId]);
 
-  // Update expression
+  // Update expression when emotion changes or model becomes ready
   useEffect(() => {
     if (modelRef.current) setModelExpression(modelRef.current, emotion);
-  }, [emotion]);
+  }, [emotion, modelReady]);
+
+  // Force mouth parameter every frame via Pixi ticker.
+  // Cubium resets parameters during internalModel.update() each frame,
+  // so we must re-apply ParamMouthOpenY after the model update completes.
+  useEffect(() => {
+    if (!appRef.current || !modelRef.current) return;
+    const ticker = appRef.current.ticker;
+    let mouthCount = 0;
+    function setMouthParam(core, name, val) {
+      try { core.setParameterValueById(name, val); } catch (e) {}
+    }
+    const forceMouth = () => {
+      const m = modelRef.current;
+      if (!m) return;
+      try {
+        const core = m.internalModel?.coreModel;
+        if (!core) return;
+        if (typeof core.setParameterValueById !== "function") return;
+        const val = getMouthOpenValue(emotion);
+        // Set both mouth parameters
+        setMouthParam(core, "ParamMouthOpenY", val);
+        // Try other mouth-related parameters
+        const mouthParams = ["ParamMouthOpenY", "ParamMouthForm", "ParamMouthOpenX", "ParamMouthScaleY", "ParamMouthScaleX", "ParamMouthWidth", "ParamMouthHeight"];
+        if (mouthCount++ < 1) {
+          for (const name of mouthParams) {
+            try {
+              const v = core.getParameterValueById(name);
+              console.log("[Mouth] " + name + "=" + v.toFixed(3));
+            } catch (e) {
+              console.log("[Mouth] " + name + ": NOT FOUND");
+            }
+          }
+        }
+      } catch (e) { if (mouthCount++ < 5) console.log("[Mouth] error:", e); }
+    };
+    ticker.add(forceMouth);
+    return () => ticker.remove(forceMouth);
+  }, [emotion, modelReady]);
 
   // Eye tracking
   useEffect(() => {
@@ -197,3 +254,6 @@ export default function OmegaLive2DModel({
     <div ref={divRef} style={{ width: "100%", height: "100%", overflow: "hidden" }} />
   );
 }
+
+
+

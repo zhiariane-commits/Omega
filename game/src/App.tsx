@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { CapsuleWindow } from "./components/CapsuleWindow";
 import { FloatingWindow } from "./components/FloatingWindow";
 import type { OmegaState } from "./types";
-import { applyPassiveMoodGain } from "./systems/passiveMood";
+import { applyPassiveMoodGain, applyOnlineMoodTick } from "./systems/passiveMood";
 
 const fallbackState: OmegaState = {
   nickname: "",
@@ -64,8 +64,9 @@ export function App() {
     return () => window.removeEventListener("popstate", syncView);
   }, []);
 
+  // 离线补算（应用加载时） + 在线持续 tick（每 60 秒）
   useEffect(() => {
-    async function applyGain() {
+    async function applyOfflineGain() {
       const s = await window.omega.state.getOmegaState();
       const update = applyPassiveMoodGain(s);
       if (update._message) {
@@ -83,9 +84,21 @@ export function App() {
       setState(next);
     }
 
-    void applyGain();
+    async function applyOnlineTick() {
+      const s = await window.omega.state.getOmegaState();
+      const update = applyOnlineMoodTick(s);
+      if (update.lastActiveTime !== s.lastActiveTime || (update.mood !== undefined && update.mood !== s.mood)) {
+        await window.omega.state.updateOmegaState(update);
+        const next = await window.omega.state.getOmegaState();
+        setState(next);
+      }
+    }
 
-    const interval = setInterval(() => void applyGain(), 30 * 60_000);
+    // 初始加载时执行离线补算
+    void applyOfflineGain();
+
+    // 之后每 60 秒执行在线 tick
+    const interval = setInterval(() => void applyOnlineTick(), 60_000);
     return () => clearInterval(interval);
   }, []);
 
