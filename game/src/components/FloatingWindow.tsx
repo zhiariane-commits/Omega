@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChatLine, OmegaAIResponse, OmegaState } from "../types";
+import type { ChatLine, OmegaAIResponse, OmegaEmotion, OmegaState } from "../types";
 import Live2DModel, { type AnimationId } from "../components/Live2DModel";
 import {
   getAffectionLevel,
@@ -1100,6 +1100,103 @@ function DevPanel({
             </button>
           </div>
           <span className="dev-panel__current">清空本次会话聊天记录和长期记忆</span>
+        </div>
+
+        <hr className="dev-panel__divider" />
+
+        {/* 情绪状态选择 */}
+        <div className="dev-panel__row">
+          <label>情绪状态</label>
+          <div className="dev-panel__input-group" style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+            {(["calm_positive","calm_negative","happy","shy","sad","proud","excited","fearful"] as const).map((em) => (
+              <button
+                key={em}
+                type="button"
+                onClick={async () => {
+                  await updateState({ emotion: em });
+                  setClickBubble("情绪已设置为: " + (emotionLabel[em] || em));
+                  setTimeout(() => setClickBubble(null), 2000);
+                }}
+                style={{
+                  background: state.emotion === em ? "#00ccff" : "#1a2a3a",
+                  color: state.emotion === em ? "#000" : "#88ccff",
+                  border: state.emotion === em ? "1px solid #00ccff" : "1px solid #335",
+                  padding: "2px 8px",
+                  fontSize: 12,
+                  borderRadius: 4,
+                  cursor: "pointer",
+                }}
+              >
+                {emotionLabel[em] || em}
+              </button>
+            ))}
+          </div>
+          <span className="dev-panel__current">当前: {emotionLabel[state.emotion] || state.emotion}</span>
+        </div>
+
+        <hr className="dev-panel__divider" />
+
+        {/* 一键重置 */}
+        <div className="dev-panel__row">
+          <label>重置游戏</label>
+          <div className="dev-panel__input-group">
+            <button
+              type="button"
+              style={{ borderColor: "#ff4444", color: "#ff4444" }}
+              onClick={async () => {
+                if (!window.confirm("确定要重置所有游戏数据吗？\n\n这将清空所有进度，还原成初次启动的样子。")) return;
+                if (!window.confirm("再次确认：所有数据将被清除，游戏将重新开始。")) return;
+
+                const defaults: Partial<OmegaState> = {
+                  nickname: "",
+                  prologueDone: false,
+                  mood: 30,
+                  affinity: 0,
+                  emotion: "calm_negative",
+                  currentMode: "prologue",
+                  unlocked: {
+                    activeGreeting: false,
+                    cleanCapsule: false,
+                    game: false,
+                    writing: false,
+                    bookshelf: false,
+                    construction: false,
+                    gardening: false,
+                  },
+                  sessionStartTime: Date.now(),
+                  lastActiveTime: Date.now(),
+                  totalFocusTime: 0,
+                  pendingStoryComplete: false,
+                  capsuleBackgroundDirty: true,
+                  currentIdleAction: "stare",
+                  completedMilestones: [],
+                  lastGreetingTime: 0,
+                  pendingMilestoneEvent: null,
+                  purchasedItems: [],
+                  capsuleDecoration: {},
+                  equippedDecorations: {},
+                  room2Unlocked: false,
+                  room2Furniture: {},
+                  stories: [],
+                  idleActionStart: Date.now(),
+                  idleActionDuration: 120_000,
+                };
+
+                await updateState(defaults);
+                try { await window.omega.state.clearChatMemory(); } catch { /* ignore */ }
+
+                setClickBubble("游戏已重置，正在重新启动序章...");
+
+                setTimeout(async () => {
+                  try { await window.omega.window.hideFloating(); } catch { /* ignore */ }
+                  try { await window.omega.window.openCapsule(); } catch { /* ignore */ }
+                }, 500);
+              }}
+            >
+              ⚠ 一键重置游戏
+            </button>
+          </div>
+          <span className="dev-panel__current" style={{ color: "#ff6666" }}>清空所有进度，回到序章重新开始</span>
         </div>
       </div>
     </section>
