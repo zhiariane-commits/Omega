@@ -12,7 +12,6 @@ interface Live2DModelProps {
   emotion?: OmegaEmotion;
   mousePos?: { x: number; y: number };
   animationId?: AnimationId;
-  onAnimationEnd?: () => void;
 }
 
 const modelPaths: Record<AnimationId, string> = {
@@ -78,7 +77,6 @@ export default function OmegaLive2DModel({
   emotion = "calm_negative",
   mousePos = { x: 0.5, y: 0.5 },
   animationId = "idle",
-  onAnimationEnd,
 }: Live2DModelProps) {
   const divRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
@@ -113,10 +111,6 @@ export default function OmegaLive2DModel({
     createAndAttachModel(app, path, scale, emotion)
       .then((model) => {
         modelRef.current = model;
-
-        if (animationId === "click" && onAnimationEnd) {
-          setTimeout(() => onAnimationEnd(), 2000);
-        }
       })
       .catch((err) => console.error("[Live2D] load error:", err));
 
@@ -146,17 +140,17 @@ export default function OmegaLive2DModel({
   // Switch model on animation change
   useEffect(() => {
     if (prevAnimRef.current === animationId || !appRef.current) return;
-    prevAnimRef.current = animationId;
 
     const app = appRef.current;
     const path = modelPaths[animationId];
     if (!path) return;
 
-    // angry 和 idle 都用 omega 模型，只需播放动作，不需销毁重建
-    if ((animationId === "angry" || animationId === "idle") && modelRef.current) {
+    // idle/angry 都用 omega 模型：如果当前已加载的不是 click 模型，直接复用避免重复加载
+    if ((animationId === "idle" || animationId === "angry") && modelRef.current && prevAnimRef.current !== "click") {
       if (animationId === "angry") {
         try { modelRef.current.motion("angry"); } catch {}
       }
+      prevAnimRef.current = animationId;
       return;
     }
 
@@ -168,9 +162,7 @@ export default function OmegaLive2DModel({
     createAndAttachModel(app, path, scale, emotion)
       .then((model) => {
         modelRef.current = model;
-        if (animationId === "click" && onAnimationEnd) {
-          setTimeout(() => onAnimationEnd(), 2000);
-        }
+        prevAnimRef.current = animationId;
       })
       .catch((err) => console.error("[Live2D] switch error:", err));
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,4 +1,4 @@
-﻿import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChatLine, OmegaAIResponse, OmegaState } from "../types";
 import Live2DModel, { type AnimationId } from "../components/Live2DModel";
 import {
@@ -105,6 +105,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   const busyRef = useRef(false);
   busyRef.current = busy;
   const [animation, setAnimation] = useState<AnimationId>("idle");
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [idleHint, setIdleHint] = useState(false);
   const [sleeping, setSleeping] = useState(false);
   const [sleepTimer, setSleepTimer] = useState(60);
@@ -472,6 +473,9 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
     setMenu(menu ? null : "root");
     wakeUp();
     setAnimation("click");
+    // 2秒后自动恢复
+    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+    clickTimerRef.current = setTimeout(() => setAnimation("idle"), 2000);
   }
 
   // ---------- 头像拖拽窗口 ----------
@@ -531,9 +535,6 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   // 低心境时气泡菜单是否特殊显示
   const moodLocked = isLowMood(state);
 
-  const handleAnimationEnd = useCallback(() => {
-    setAnimation("idle");
-  }, []);
 
   useEffect(() => {
     if (state.emotion === "sad" || state.emotion === "fearful") {
@@ -644,7 +645,6 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       >
         <Live2DModel
           animationId={animation}
-          onAnimationEnd={handleAnimationEnd}
           scale={0.85}
           emotion={state.emotion}
           mousePos={mousePos}
