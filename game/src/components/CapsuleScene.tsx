@@ -204,9 +204,13 @@ export function CapsuleScene({
         if (keysRef.current.has("a")) pos.x -= speed;
         if (keysRef.current.has("d")) pos.x += speed;
         pos.x = Math.max(150, Math.min(app.screen.width - 150, pos.x));
-        pos.y = Math.max(300, Math.min(app.screen.height - 120, pos.y));
+        pos.y = Math.max(350, Math.min(480, pos.y));
         player.position.set(pos.x, pos.y);
-        player.scale.set(0.72 + (pos.y - 300) / 900);
+        // Ω 约占背景高度的 2/3，随上下移动做轻微景深缩放
+        const omegaTargetHeight = app.screen.height * 0.7;
+        const omegaBaseScale = omegaTargetHeight / 257;
+        const depthScale = 0.95 + 0.1 * (pos.y - 350) / 130;
+        player.scale.set(omegaBaseScale * depthScale);
 
         if (arrowRef.current) {
           arrowRef.current.alpha = prologueDone ? 0 : 0.5 + Math.sin(performance.now() / 260) * 0.4;
@@ -441,8 +445,9 @@ function drawOmega(emotion: OmegaEmotion, texture: Texture | undefined): { root:
   if (texture) {
     const sprite = new Sprite(texture);
     sprite.anchor.set(0.5, 1);
-    sprite.width = 154;
-    sprite.height = 257;
+    // 保持原图宽高比：只按高度等比缩放，避免宽度被单独拉伸变形
+    const omegaBaseHeight = 257;
+    sprite.scale.set(omegaBaseHeight / texture.height);
     sprite.y = 150;
     root.addChild(sprite);
   } else {
