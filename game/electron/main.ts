@@ -83,6 +83,7 @@ type OmegaState = {
   completedMilestones: string[];
   lastGreetingTime: number;
   pendingMilestoneEvent: string | null;
+  m2CleanAgreedAt: number | null;
   purchasedItems: string[];
   capsuleDecoration: Record<string, string>;
   equippedDecorations: Record<string, string>;
@@ -133,6 +134,7 @@ const defaultState: OmegaState = {
   completedMilestones: [],
   lastGreetingTime: 0,
   pendingMilestoneEvent: null,
+  m2CleanAgreedAt: null,
   purchasedItems: [],
   capsuleDecoration: {},
   equippedDecorations: {},
@@ -167,7 +169,13 @@ async function loadPersistedData(): Promise<PersistedData> {
   const raw = await readFile(stateFile(), "utf8");
   const parsed = JSON.parse(raw) as Partial<PersistedData>;
   return {
-    state: { ...defaultState, ...parsed.state, unlocked: { ...defaultState.unlocked, ...parsed.state?.unlocked } },
+    state: {
+      ...defaultState,
+      ...parsed.state,
+      unlocked: { ...defaultState.unlocked, ...parsed.state?.unlocked },
+      // 每次启动视为新会话，M2 阶段2据此判定「关闭游戏后再启动」
+      sessionStartTime: Date.now(),
+    },
     memories: Array.isArray(parsed.memories) ? parsed.memories : []
   };
 }
@@ -334,6 +342,8 @@ function createCapsuleWindow(prologue = false) {
   capsuleWindow.loadURL(rendererPath("capsule", prologue));
   capsuleWindow.on("closed", () => {
     capsuleWindow = null;
+    // 跨窗口状态同步：太空舱内更新的状态（如 M2 剧情）通知悬浮窗刷新
+    floatingWindow?.webContents?.send("state:changed", persisted.state);
     if (!isQuitting && persisted.state.prologueDone && !floatingWindow) {
       createFloatingWindow();
     }

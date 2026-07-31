@@ -1,8 +1,9 @@
-﻿import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { lazy, Suspense } from "react";
 import type { OmegaState } from "../types";
 import { CapsuleScene } from "./CapsuleScene";
-import { getCleanCapsuleDialogue, applyMilestoneReward } from "../systems/storyMilestones";
+import { getM2CleanSteps, isM2CleanStoryPending, M2_CLEAN_HINT } from "../systems/storyMilestones";
+import CapsuleStoryDialogue from "./CapsuleStoryDialogue";
 import DecorationPanel from "./DecorationPanel";
 import BookshelfPanel from "./BookshelfPanel";
 import M0Prologue from "./M0Prologue";
@@ -16,16 +17,13 @@ type Props = {
 export function CapsuleWindow({ state, updateState }: Props) {
   const [sleeping, setSleeping] = useState(false);
   const [sleepCountdown, setSleepCountdown] = useState(60);
-  const [cleanDialogueIndex, setCleanDialogueIndex] = useState(-1);
+
   const [decorating, setDecorating] = useState(false);
   const [inRoom2, setInRoom2] = useState(false);
   const [bookshelfShow, setBookshelfShow] = useState(false);
   const canDecorate = state.prologueDone && !sleeping;
-  const cleanDialogue = state.completedMilestones.includes("m2_clean_capsule")
-    ? null
-    : state.pendingMilestoneEvent?.includes("clean")
-      ? getCleanCapsuleDialogue()
-      : null;
+  // M2 清扫剧情：已提醒（或提醒气泡仍挂起）且尚未同意 → 进入剧情模式
+  const m2StoryPending = isM2CleanStoryPending(state);
 
   const lowMoodGuide = !state.prologueDone ? false : state.mood < 15;
 
@@ -58,15 +56,14 @@ export function CapsuleWindow({ state, updateState }: Props) {
     setSleepCountdown(60);
   }, []);
 
-  useEffect(() => {
-    if (
-      cleanDialogue &&
-      !state.completedMilestones.includes("m2_clean_capsule") &&
-      cleanDialogueIndex === -1
-    ) {
-      setCleanDialogueIndex(0);
-    }
-  }, [cleanDialogue, cleanDialogueIndex, state.completedMilestones]);
+  // M2 剧情完成：记录同意时间戳，并在悬浮窗显示提示气泡
+  const handleM2Complete = useCallback(async () => {
+    await updateState({
+      m2CleanAgreedAt: Date.now(),
+      pendingMilestoneEvent: M2_CLEAN_HINT,
+    });
+  }, [updateState]);
+
 
   // Pre-prologue: show M0 开篇序章
   if (!state.prologueDone) {
@@ -89,7 +86,7 @@ export function CapsuleWindow({ state, updateState }: Props) {
             </span>
           )}
         </div>
-        {canDecorate && !decorating && (
+        {canDecorate && !decorating && !m2StoryPending && (
           <button
             type="button"
             style={{ borderColor: '#00ccff', color: '#00ccff', marginRight: 8 }}
@@ -98,7 +95,7 @@ export function CapsuleWindow({ state, updateState }: Props) {
             {'\u88C5\u4FEE'}
           </button>
         )}
-        {state.room2Unlocked && !inRoom2 && !decorating && !sleeping && (
+        {state.room2Unlocked && !inRoom2 && !decorating && !sleeping && !m2StoryPending && (
           <button
             type="button"
             style={{ borderColor: '#88ccff', color: '#88ccff', marginRight: 8 }}
@@ -125,36 +122,24 @@ export function CapsuleWindow({ state, updateState }: Props) {
             <p>{'\u7761\u9192\u540E\u5FC3\u5883\u503C\u4F1A\u6062\u590D\u4E00\u4E9B'}</p>
           </div>
         </section>
-      ) : cleanDialogue && cleanDialogueIndex >= 0 && cleanDialogueIndex < cleanDialogue.length ? (
-        <section className="capsule-dialogue">
-          <div className="capsule-dialogue__content">
-            {cleanDialogue.slice(0, cleanDialogueIndex + 1).map((line, i) => (
-              <p key={i} className={'capsule-dialogue__line capsule-dialogue__line--' + line.speaker}>
-                <strong>{line.speaker === "omega" ? "\u03A9" : state.nickname || "\u4F60"}</strong>
-                {line.text}
-              </p>
-            ))}
-          </div>
-          <button
-            type="button"
-            className="capsule-dialogue__next"
-            onClick={() => {
-              if (cleanDialogueIndex + 1 >= cleanDialogue.length) {
-                applyMilestoneReward("m2_clean_capsule", state);
-                updateState({
-                  ...applyMilestoneReward("m2_clean_capsule", state),
-                  capsuleBackgroundDirty: false,
-                  pendingMilestoneEvent: null,
-                }).catch(() => {});
-                setCleanDialogueIndex(-1);
-              } else {
-                setCleanDialogueIndex(cleanDialogueIndex + 1);
-              }
-            }}
-          >
-            {cleanDialogueIndex + 1 >= cleanDialogue.length ? '\u6211\u77E5\u9053\u4E86' : '\u7EE7\u7EED'}
-          </button>
-        </section>
+      ) : m2StoryPending ? (
+        <>
+          <CapsuleScene
+            prologueDone={true}
+            emotion={state.emotion}
+            mood={state.mood}
+            equippedDecorations={state.equippedDecorations ?? {}}
+            capsuleBackgroundDirty={state.capsuleBackgroundDirty}
+            lowMood={state.mood < 15}
+            room2Unlocked={state.room2Unlocked ?? false}
+            onShelfInteract={() => setBookshelfShow(true)}
+            onRoom2Door={() => { setInRoom2(true); }}
+          />
+          <CapsuleStoryDialogue
+            steps={getM2CleanSteps(state.nickname)}
+            onComplete={handleM2Complete}
+          />
+        </>
       ) : inRoom2 ? (
         <Suspense fallback={<div className="desk-hint">Loading...</div>}>
           <LazyRoom2

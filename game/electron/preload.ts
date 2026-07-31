@@ -40,6 +40,10 @@ const omegaApi = {
   onShowContextMenu: (callback: () => void) => {
     ipcRenderer.on("show-context-menu", () => callback());
     return () => { ipcRenderer.removeAllListeners("show-context-menu"); };
+  },
+  onStateChanged: (callback: (state: unknown) => void) => {
+    ipcRenderer.on("state:changed", (_event, state) => callback(state));
+    return () => { ipcRenderer.removeAllListeners("state:changed"); };
   }
 };
 

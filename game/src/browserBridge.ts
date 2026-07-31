@@ -1,4 +1,4 @@
-﻿import type { ChatLine, OmegaAIResponse, OmegaState } from "./types";
+import type { ChatLine, OmegaAIResponse, OmegaState } from "./types";
 
 const defaultState: OmegaState = {
   nickname: "",
@@ -33,6 +33,7 @@ const defaultState: OmegaState = {
   completedMilestones: [],
   lastGreetingTime: 0,
   pendingMilestoneEvent: null,
+  m2CleanAgreedAt: null,
 };
 
 const stateKey = "omega.browser.state";
@@ -47,7 +48,9 @@ function loadState(): OmegaState {
     return {
       ...defaultState,
       ...parsed,
-      unlocked: { ...defaultState.unlocked, ...parsed.unlocked }
+      unlocked: { ...defaultState.unlocked, ...parsed.unlocked },
+      // 每次进入视为新会话，M2 阶段2据此判定「关闭游戏后再启动」
+      sessionStartTime: Date.now()
     };
   } catch {
     return defaultState;
@@ -72,6 +75,9 @@ function loadMemories(): string[] {
 function saveMemories(memories: string[]) {
   localStorage.setItem(memoryKey, JSON.stringify(memories.slice(-100)));
 }
+
+/** 跨窗口状态同步监听器（浏览器模式下在 updateOmegaState 后通知） */
+const stateListeners = new Set<(state: OmegaState) => void>();
 
 function forceMockAI() {
   return localStorage.getItem("omega.browser.forceMock") === "1";
@@ -192,6 +198,7 @@ export function installBrowserBridge() {
           unlocked: { ...current.unlocked, ...partial.unlocked }
         };
         saveState(next);
+        stateListeners.forEach((cb) => cb(next));
         return next;
       },
       getSessionLog: async () => [...sessionLog],
@@ -209,6 +216,10 @@ export function installBrowserBridge() {
         return memories;
       },
       getSummaries: async () => loadMemories()
+    },
+    onStateChanged: (callback: (state: OmegaState) => void) => {
+      stateListeners.add(callback);
+      return () => { stateListeners.delete(callback); };
     },
     ai: {
       sendMessage: async ({ text }: { text: string; includeScreenshot: boolean }) => {

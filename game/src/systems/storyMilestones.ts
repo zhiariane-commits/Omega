@@ -5,11 +5,12 @@
  * 由 FloatingWindow/CapsuleWindow 在适当时机调用 checkMilestones。
  */
 
-import type { OmegaState } from "../types";
+import type { OmegaEmotion, OmegaState } from "../types";
 
 /** 所有可用里程碑 ID 列表 */
 export const ALL_MILESTONES = [
   "m1_first_greeting",
+  "m2_clean_asked",
   "m2_clean_capsule",
   "m3_show_world",
   "m4_childhood_story",
@@ -47,18 +48,51 @@ export function pickPeriodicTopic(): string {
   return PERIODIC_TOPICS[Math.floor(Math.random() * PERIODIC_TOPICS.length)];
 }
 
-/* ---------- 里程碑 2: 清扫太空舱对话 ---------- */
+/* ---------- 里程碑 2: 清扫太空舱剧情（M0 Phase4 风格） ---------- */
 
-const CLEAN_DIALOGUES = [
-  { speaker: "omega" as const, text: "我应该打扫一下太空舱了……" },
-  { speaker: "player" as const, text: "（点头示意）" },
-  { speaker: "omega" as const, text: "这里比我刚来的时候还要乱。墙角堆着一些不记得什么时候的笔记，窗台上全是灰。恒星的光照进来的时候，灰尘会飘得很明显。" },
-  { speaker: "player" as const, text: "（安静地等着）" },
-  { speaker: "omega" as const, text: "……谢谢你没有催我。我慢慢来就好。" },
-];
+/** M2 阶段1：悬浮窗提醒气泡文案 */
+export const M2_CLEAN_REMINDER = "我应该打扫一下太空舱了……";
 
-export function getCleanCapsuleDialogue() {
-  return CLEAN_DIALOGUES;
+/** M2 阶段1→2 之间：悬浮窗提示气泡文案 */
+export const M2_CLEAN_HINT = "最近Ω有可能在太空舱打扫卫生！";
+
+/** M2 阶段2：下次启动时的完成气泡文案 */
+export const M2_CLEAN_DONE = "太空舱清理好了。";
+
+/** M2 剧情对话步骤（太空舱内演出，格式同 M0 Phase 4） */
+export type M2CleanStep =
+  | { role: "omega_bubble"; text: string; emotion?: OmegaEmotion }
+  | { role: "player_choice"; options: string[] };
+
+/** 生成 M2 剧情对话步骤 */
+export function getM2CleanSteps(nickname: string): M2CleanStep[] {
+  return [
+    {
+      role: "omega_bubble",
+      text: `${nickname || "你"}，你觉不觉得我应该打扫一下我的太空舱？`,
+      emotion: "shy",
+    },
+    {
+      role: "player_choice",
+      options: ["现在这样也挺温馨的", "确实该打扫一下"],
+    },
+    {
+      role: "omega_bubble",
+      text: "我觉得我该收拾一下，听说收拾东西会让人的心情变好。",
+      emotion: "calm_positive",
+    },
+  ];
+}
+
+/** M2 剧情是否处于「待玩家去太空舱对话」阶段（悬浮窗红点 + 太空舱剧情入口） */
+export function isM2CleanStoryPending(state: OmegaState): boolean {
+  const completed = new Set(state.completedMilestones ?? []);
+  return (
+    !completed.has("m2_clean_capsule") &&
+    state.m2CleanAgreedAt == null &&
+    (state.pendingMilestoneEvent === M2_CLEAN_REMINDER ||
+      completed.has("m2_clean_asked"))
+  );
 }
 
 /* ---------- 里程碑检查 ---------- */
@@ -86,10 +120,28 @@ export function checkMilestones(state: OmegaState): MilestoneCheck {
     };
   }
 
-  if (!completed.has("m2_clean_capsule") && mood >= 100) {
+  // M2 阶段1：提醒打扫（悬浮窗气泡 + 太空舱红点提示）
+  if (
+    !completed.has("m2_clean_asked") &&
+    !completed.has("m2_clean_capsule") &&
+    state.m2CleanAgreedAt == null &&
+    mood >= 100
+  ) {
+    return {
+      triggered: "m2_clean_asked",
+      bubbleText: M2_CLEAN_REMINDER,
+    };
+  }
+
+  // M2 阶段2：已同意清扫且跨会话（关闭游戏后再启动）→ 完成剧情
+  if (
+    !completed.has("m2_clean_capsule") &&
+    state.m2CleanAgreedAt != null &&
+    state.m2CleanAgreedAt < (state.sessionStartTime ?? 0)
+  ) {
     return {
       triggered: "m2_clean_capsule",
-      bubbleText: "我应该打扫一下太空舱了……",
+      bubbleText: M2_CLEAN_DONE,
     };
   }
 
@@ -147,9 +199,13 @@ export function applyMilestoneReward(
       partial.emotion = "calm_positive";
       partial.lastGreetingTime = Date.now();
       break;
+    case "m2_clean_asked":
+      partial.m2CleanAgreedAt = null;
+      break;
     case "m2_clean_capsule":
       partial.capsuleBackgroundDirty = false;
       partial.emotion = "proud";
+      partial.m2CleanAgreedAt = null;
       break;
     case "m3_show_world":
       partial.mood = Math.min(1000, (currentState.mood ?? 0) + 10);

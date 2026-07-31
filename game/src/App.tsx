@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CapsuleWindow } from "./components/CapsuleWindow";
 import { FloatingWindow } from "./components/FloatingWindow";
 import type { OmegaState } from "./types";
@@ -37,6 +37,7 @@ const fallbackState: OmegaState = {
   stories: [],
   idleActionStart: Date.now(),
   idleActionDuration: 120_000,
+  m2CleanAgreedAt: null,
 };
 
 export function App() {
@@ -55,6 +56,14 @@ export function App() {
       setState(nextState);
       setLoaded(true);
     });
+  }, []);
+
+  // 跨窗口状态同步：太空舱窗口更新状态后，悬浮窗据此刷新
+  useEffect(() => {
+    const unsubscribe = window.omega.onStateChanged?.((nextState) => {
+      setState(nextState);
+    });
+    return () => unsubscribe?.();
   }, []);
 
   useEffect(() => {

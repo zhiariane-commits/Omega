@@ -1,4 +1,4 @@
-﻿import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChatLine, OmegaAIResponse, OmegaEmotion, OmegaState } from "../types";
 import Live2DModel, { type AnimationId } from "../components/Live2DModel";
 import {
@@ -17,6 +17,7 @@ import {
   checkMilestones,
   applyMilestoneReward,
   pickPeriodicTopic,
+  isM2CleanStoryPending,
   ALL_MILESTONES,
 } from "../systems/storyMilestones";
 import { generateOptions } from "../systems/optionAgent";
@@ -731,7 +732,10 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
           </button>
           <button
             type="button"
-            className={moodLocked ? "capsule-highlight" : ""}
+            className={[
+              moodLocked ? "capsule-highlight" : "",
+              isM2CleanStoryPending(state) ? "m2-red-dot" : "",
+            ].filter(Boolean).join(" ")}
             onClick={(e) => {
               e?.stopPropagation();
               if (moodLocked) {
@@ -1002,7 +1006,8 @@ function DevPanel({
 
   const milestoneLabels: Record<string, string> = {
     m1_first_greeting: "M1 首次问候 (mood > 50)",
-    m2_clean_capsule: "M2 清洁太空舱 (mood >= 100)",
+    m2_clean_asked: "M2 提醒打扫 (已提醒，等待太空舱对话)",
+    m2_clean_capsule: "M2 清洁太空舱 (下次启动完成)",
     m3_show_world: "M3 展示世界 (mood >= 100, affinity >= 50)",
     m4_childhood_story: "M4 童年故事 (mood >= 200, affinity > 50)",
     m5_construction: "M5 建造 (mood >= 300, unlocked.construction)",
@@ -1195,6 +1200,7 @@ function DevPanel({
                   completedMilestones: [],
                   lastGreetingTime: 0,
                   pendingMilestoneEvent: null,
+                  m2CleanAgreedAt: null,
                   purchasedItems: [],
                   capsuleDecoration: {},
                   equippedDecorations: {},

@@ -100,6 +100,8 @@ export type OmegaState = {
   lastGreetingTime: number;
   /** 待处理的里程碑事件 */
   pendingMilestoneEvent: string | null;
+  /** M2 清扫剧情：玩家同意打扫的时间戳（null=尚未同意） */
+  m2CleanAgreedAt: number | null;
 };
 
 export type PersistedData = {
@@ -139,6 +141,8 @@ declare global {
       };
       /** vision 思考中提示 */
       onOmegaThinking?: (callback: (msg: string) => void) => () => void;
+      /** 跨窗口状态同步（如太空舱窗口更新状态后通知悬浮窗） */
+      onStateChanged?: (callback: (state: OmegaState) => void) => () => void;
     };
   }
 }
