@@ -102,6 +102,21 @@ export function CapsuleScene({
         app.stage.addChildAt(fallback, 0);
       }
 
+      // --- Table image layer (separate sprite, bottom center) ---
+      try {
+        const tableTexture = await loadImageAsTexture(
+          app.renderer as unknown as import("pixi.js").Renderer,
+          "/capusle/desk.png"
+        );
+        const tableSprite = new Sprite(tableTexture);
+        const tableHeight = app.screen.height * 0.25;
+        tableSprite.anchor.set(0.5, 1);
+        tableSprite.scale.set(tableHeight / tableTexture.height);
+        tableSprite.position.set(app.screen.width * 0.5, app.screen.height);
+        app.stage.addChildAt(tableSprite, 1);
+      } catch (err) {
+        console.warn("Capsule table load failed", err);
+      }
       // --- Decoration overlays ---
       const decorLayer = new Container();
       app.stage.addChild(decorLayer);

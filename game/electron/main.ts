@@ -1,6 +1,6 @@
-﻿import { app, BrowserWindow, desktopCapturer, ipcMain, Menu, nativeImage, Tray } from "electron";
+import { app, BrowserWindow, desktopCapturer, ipcMain, Menu, nativeImage, Tray } from "electron";
 import { readFile, writeFile } from "node:fs/promises";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 try {
@@ -104,6 +104,7 @@ let floatingWindow: InstanceType<typeof BrowserWindow> | null = null;
 let capsuleWindow: InstanceType<typeof BrowserWindow> | null = null;
 let tray: InstanceType<typeof Tray> | null = null;
 let persisted: PersistedData;
+let isQuitting = false;
 
 const defaultState: OmegaState = {
   nickname: "",
@@ -333,11 +334,41 @@ function createCapsuleWindow(prologue = false) {
   capsuleWindow.loadURL(rendererPath("capsule", prologue));
   capsuleWindow.on("closed", () => {
     capsuleWindow = null;
-    if (persisted.state.prologueDone && !floatingWindow) {
+    if (!isQuitting && persisted.state.prologueDone && !floatingWindow) {
       createFloatingWindow();
     }
   });
   return capsuleWindow;
+}
+
+/** 退出时打包本次会话记忆（同步汇总，异步落盘，绝不阻塞退出）。 */
+function persistSessionSummary() {
+  try {
+    if (sessionLog.length > 4) {
+      const summaries = summarizeSessionLog(sessionLog);
+      for (const s of summaries) {
+        if (s.trim()) {
+          persisted.memories.push(s.trim());
+        }
+      }
+      persisted.memories = persisted.memories.slice(-100);
+    }
+  } catch (e) {
+    console.warn("[quit] summarize failed:", e);
+  }
+}
+
+/** 托盘/UI 强制退出：同步保存后立即退出，确保任何时候都能关掉。 */
+function quitApp() {
+  if (isQuitting) return;
+  isQuitting = true;
+  persistSessionSummary();
+  try {
+    writeFileSync(stateFile(), JSON.stringify(persisted, null, 2), "utf8");
+  } catch (e) {
+    console.warn("[quit] final save failed:", e);
+  }
+  app.exit(0);
 }
 
 function createTray() {
@@ -351,7 +382,7 @@ function createTray() {
       { label: "隐藏悬浮窗", click: () => { if (floatingWindow) floatingWindow.hide(); } },
       { label: "打开太空舱", click: () => createCapsuleWindow() },
       { type: "separator" },
-      { label: "退出游戏", click: () => app.quit() }
+      { label: "退出游戏", click: quitApp }
     ])
   );
 }
@@ -686,18 +717,11 @@ app.whenReady().then(async () => {
 
 app.on("window-all-closed", () => {});
 
-// 退出时打包本次会话记忆
-app.on("before-quit", async () => {
-  if (sessionLog.length > 4) {
-    const summaries = summarizeSessionLog(sessionLog);
-    for (const s of summaries) {
-      if (s.trim()) {
-        persisted.memories.push(s.trim());
-      }
-    }
-    persisted.memories = persisted.memories.slice(-100);
-    await savePersistedData();
-  }
+// 正常退出路径（如系统关机）：同步汇总，异步落盘，不阻塞退出
+app.on("before-quit", () => {
+  if (isQuitting) return;
+  persistSessionSummary();
+  void savePersistedData().catch((e) => console.warn("[quit] save failed:", e));
 });
 
 ipcMain.handle("window:openCapsule", () => {
@@ -736,7 +760,7 @@ ipcMain.handle("window:setResizable", async (_event, resizable: boolean) => {
 });
 
 ipcMain.handle("window:quit", () => {
-  app.quit();
+  quitApp();
 });
 
 ipcMain.handle("state:getOmegaState", () => persisted.state);
