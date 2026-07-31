@@ -38,6 +38,7 @@ export function CapsuleScene({
   const playerRef = useRef<Container | null>(null);
   const faceRef = useRef<Graphics | null>(null);
   const deskGlowRef = useRef<Graphics | null>(null);
+  const tableSpriteRef = useRef<Sprite | null>(null);
   const positionRef = useRef<Position>({ x: 512, y: 444 });
   const keysRef = useRef(new Set<string>());
   const [nearDesk, setNearDesk] = useState(false);
@@ -82,6 +83,7 @@ export function CapsuleScene({
 
       appRef.current = app;
       hostElement.appendChild(app.view as unknown as Node);
+      app.stage.sortableChildren = true;
 
       // --- Background image layer ---
       try {
@@ -103,6 +105,7 @@ export function CapsuleScene({
       }
 
       // --- Table image layer (separate sprite, bottom center) ---
+      let tableHalfWidth = 0;
       try {
         const tableTexture = await loadImageAsTexture(
           app.renderer as unknown as import("pixi.js").Renderer,
@@ -113,17 +116,22 @@ export function CapsuleScene({
         tableSprite.anchor.set(0.5, 1);
         tableSprite.scale.set(tableHeight / tableTexture.height);
         tableSprite.position.set(app.screen.width * 0.5, app.screen.height);
+        tableSprite.zIndex = 3;
+        tableHalfWidth = tableSprite.width / 2;
+        tableSpriteRef.current = tableSprite;
         app.stage.addChildAt(tableSprite, 1);
       } catch (err) {
         console.warn("Capsule table load failed", err);
       }
       // --- Decoration overlays ---
       const decorLayer = new Container();
+      decorLayer.zIndex = 1;
       app.stage.addChild(decorLayer);
       drawDecorationOverlay(decorLayer, app.screen.width, app.screen.height, equippedDecorations, capsuleBackgroundDirty);
 
       // --- UI overlay (text + door indicator) ---
       const overlay = new Container();
+      overlay.zIndex = 2;
       app.stage.addChild(overlay);
       drawUIOverlay(overlay, app.screen.width, app.screen.height, mood, room2Unlocked ?? false);
 
@@ -143,6 +151,7 @@ export function CapsuleScene({
       player.position.set(positionRef.current.x, positionRef.current.y);
       player.visible = true;
       playerRef.current = player;
+      player.zIndex = 4;
       app.stage.addChild(player);
 
       // --- Interaction arrows ---
@@ -155,6 +164,7 @@ export function CapsuleScene({
       arrow.position.set(app.screen.width * 0.5, app.screen.height * 0.34);
       arrow.alpha = prologueDone ? 0 : 0.9;
       arrowRef.current = arrow;
+      arrow.zIndex = 6;
       app.stage.addChild(arrow);
 
       const bedArrow = new Text("\u25BC Rest here", {
@@ -166,6 +176,7 @@ export function CapsuleScene({
       bedArrow.position.set(app.screen.width - 140, app.screen.height * 0.44);
       bedArrow.alpha = lowMood ? 0.9 : 0;
       bedArrowRef.current = bedArrow;
+      bedArrow.zIndex = 6;
       app.stage.addChild(bedArrow);
 
       const shelfArrow = new Text("\u25C0", {
@@ -177,6 +188,7 @@ export function CapsuleScene({
       shelfArrow.position.set(120, app.screen.height * 0.42);
       shelfArrow.alpha = room2Unlocked ? 0.15 : 0;
       shelfArrowRef.current = shelfArrow;
+      shelfArrow.zIndex = 6;
       app.stage.addChild(shelfArrow);
 
       const doorArrow = new Text("\u25B6", {
@@ -188,6 +200,7 @@ export function CapsuleScene({
       doorArrow.position.set(60, app.screen.height * 0.72);
       doorArrow.alpha = room2Unlocked ? 0.12 : 0;
       doorArrowRef.current = doorArrow;
+      doorArrow.zIndex = 6;
       app.stage.addChild(doorArrow);
 
       const handleResize = () => {
@@ -204,13 +217,40 @@ export function CapsuleScene({
         if (keysRef.current.has("a")) pos.x -= speed;
         if (keysRef.current.has("d")) pos.x += speed;
         pos.x = Math.max(150, Math.min(app.screen.width - 150, pos.x));
-        pos.y = Math.max(350, Math.min(480, pos.y));
+        pos.y = Math.max(380, Math.min(490, pos.y));
+
+        // 桌子碰撞区（梯形：Y=410 上边 X=321~759，Y=450 下边 X=227~853，X 随 Y 线性变化）：Ω 不能直接穿过桌面区域
+        if (pos.y > 410 && pos.y < 450 && tableHalfWidth > 0) {
+          const tableT = (pos.y - 410) / 40;
+          const tableLeft = 321 + (227 - 321) * tableT;
+          const tableRight = 759 + (853 - 759) * tableT;
+          if (pos.x > tableLeft && pos.x < tableRight) {
+            const dLeft = pos.x - tableLeft;
+            const dRight = tableRight - pos.x;
+            const dTop = pos.y - 410;
+            const dBottom = 450 - pos.y;
+            const minD = Math.min(dLeft, dRight, dTop, dBottom);
+            if (minD === dLeft) pos.x = tableLeft;
+            else if (minD === dRight) pos.x = tableRight;
+            else if (minD === dTop) pos.y = 410;
+            else pos.y = 450;
+          }
+        }
+
         player.position.set(pos.x, pos.y);
         // Ω 约占背景高度的 2/3，随上下移动做轻微景深缩放
-        const omegaTargetHeight = app.screen.height * 0.7;
+        const omegaTargetHeight = app.screen.height * 0.75;
         const omegaBaseScale = omegaTargetHeight / 257;
-        const depthScale = 0.95 + 0.1 * (pos.y - 350) / 130;
+        const depthScale = 0.95 + 0.1 * (pos.y - 380) / 110;
         player.scale.set(omegaBaseScale * depthScale);
+
+        // 桌子分层：Ω 在后方(350-370)时桌子盖在 Ω 上；在前方(450-480)时 Ω 在桌子前
+        const tableAbove = pos.y < 450;
+        if (tableSpriteRef.current) {
+          tableSpriteRef.current.zIndex = tableAbove ? 5 : 3;
+        }
+        player.zIndex = tableAbove ? 3 : 4;
+        app.stage.sortChildren();
 
         if (arrowRef.current) {
           arrowRef.current.alpha = prologueDone ? 0 : 0.5 + Math.sin(performance.now() / 260) * 0.4;

@@ -321,8 +321,8 @@ function createCapsuleWindow(prologue = false) {
     width: 1080,
     height: 720,
     minWidth: 900,
-    transparent: true,
-    backgroundColor: "#00000000",
+    frame: false,
+    backgroundColor: "#0a1219",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
