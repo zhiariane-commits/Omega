@@ -35,7 +35,7 @@ export const IDLE_ACTION_MODULES: Record<OmegaIdleAction, IdleActionModule> = {
   read: { duration: 2 * 60_000, moduleReady: false },
   write: { duration: 2 * 60_000, moduleReady: false },
   water_plants: { duration: 1 * 60_000, moduleReady: false },
-  wooden_sign: { duration: 5 * 60_000, moduleReady: false },
+  wooden_sign: { duration: 5 * 60_000, moduleReady: true },
   sleep: { duration: 1 * 60_000, moduleReady: true },
 };
 

@@ -556,6 +556,9 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   const effectiveIdleAction =
     state.currentMode === "idle" ? getEffectiveIdleAction(state.currentIdleAction) : "follow_mouse";
   const gazeEnabled = state.currentMode !== "idle" || effectiveIdleAction === "follow_mouse";
+  // 木牌维护场景（空白桌子 + 维护木牌）是否显示
+  const woodenSceneActive =
+    state.currentMode === "idle" && effectiveIdleAction === "wooden_sign";
 
 
   useEffect(() => {
@@ -624,6 +627,27 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
           ` · ${IDLE_ACTION_LABELS[state.currentIdleAction] ?? ""}`)}
       </p>
 
+      {/* 木牌维护场景：空白桌子 + 维护木牌（淡入淡出切换） */}
+      <section
+        className={`action-scene ${woodenSceneActive ? "action-scene--visible" : ""}`}
+        aria-hidden={!woodenSceneActive}
+        onClick={wakeUp}
+      >
+        <img
+          className="action-scene__sign"
+          src="idle-actions/maintenance-sign.png"
+          alt="维护木牌"
+          draggable={false}
+        />
+        <img
+          className="action-scene__table"
+          src="idle-actions/blank-table.png"
+          alt="空白桌子"
+          draggable={false}
+        />
+      </section>
+
+      <div className={`avatar-wrap ${woodenSceneActive ? "avatar-wrap--hidden" : ""}`}>
       <button
         className={`omega-avatar omega-avatar--${state.emotion} ${
           moodLocked ? "omega-avatar--exhausted" : ""
@@ -663,6 +687,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
           gazeEnabled={gazeEnabled}
         />
       </button>
+      </div>
 
             {/* 开发者齿轮按钮 */}
       <button
