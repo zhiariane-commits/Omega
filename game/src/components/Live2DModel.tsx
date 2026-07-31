@@ -32,10 +32,11 @@ const expressionNames: Record<string, string> = {
 };
 
 function getMouthOpenValue(emotion: string): number {
-  return emotion === "excited" || emotion === "fearful" ? 0.4 :
-         emotion === "happy" ? 0.1 :
-         emotion === "sad" ? 0.08 :
-         0;
+  // NOTE: this model's ParamMouthOpenY is inverted (1 = closed, 0 = open)
+  return emotion === "excited" || emotion === "fearful" ? 0.6 :
+         emotion === "happy" ? 0.9 :
+         emotion === "sad" ? 0.92 :
+         1;
 }
 
 function setModelExpression(model: any, emotion: string) {
@@ -198,10 +199,6 @@ export default function OmegaLive2DModel({
   useEffect(() => {
     if (!appRef.current || !modelRef.current) return;
     const ticker = appRef.current.ticker;
-    let mouthCount = 0;
-    function setMouthParam(core, name, val) {
-      try { core.setParameterValueById(name, val); } catch (e) {}
-    }
     const forceMouth = () => {
       const m = modelRef.current;
       if (!m) return;
@@ -209,22 +206,8 @@ export default function OmegaLive2DModel({
         const core = m.internalModel?.coreModel;
         if (!core) return;
         if (typeof core.setParameterValueById !== "function") return;
-        const val = getMouthOpenValue(emotion);
-        // Set both mouth parameters
-        setMouthParam(core, "ParamMouthOpenY", val);
-        // Try other mouth-related parameters
-        const mouthParams = ["ParamMouthOpenY", "ParamMouthForm", "ParamMouthOpenX", "ParamMouthScaleY", "ParamMouthScaleX", "ParamMouthWidth", "ParamMouthHeight"];
-        if (mouthCount++ < 1) {
-          for (const name of mouthParams) {
-            try {
-              const v = core.getParameterValueById(name);
-              console.log("[Mouth] " + name + "=" + v.toFixed(3));
-            } catch (e) {
-              console.log("[Mouth] " + name + ": NOT FOUND");
-            }
-          }
-        }
-      } catch (e) { if (mouthCount++ < 5) console.log("[Mouth] error:", e); }
+        core.setParameterValueById("ParamMouthOpenY", getMouthOpenValue(emotion));
+      } catch {}
     };
     ticker.add(forceMouth);
     return () => ticker.remove(forceMouth);

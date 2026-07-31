@@ -465,29 +465,134 @@ function drawOmega(emotion: OmegaEmotion, texture: Texture | undefined): { root:
 
   return { root, face };
 }
-/** Draw or update face graphics (eyes + mouth) based on emotion. */
+/** Draw or update face graphics (eyes + brows + mouth) based on emotion. */
 function drawFaceGraphics(face: Graphics, emotion: OmegaEmotion) {
   face.clear();
-  const eyeColor = emotion === "sad" || emotion === "calm_negative" ? 0x9a835a : 0x5d4037;
+  const dark = 0x5d4037;
+  const warm = 0x9a835a;
 
-  face.beginFill(eyeColor);
-  face.drawRoundedRect(-26, -10, 13, 5, 3);
-  face.drawRoundedRect(13, -10, 13, 5, 3);
-  face.endFill();
+  switch (emotion) {
+    // 平静-积极：放松的平眼 + 平眉 + 小直线嘴
+    case "calm_positive": {
+      face.beginFill(dark);
+      face.drawRoundedRect(-26, -10, 13, 5, 3);
+      face.drawRoundedRect(13, -10, 13, 5, 3);
+      face.endFill();
+      face.lineStyle(1.5, dark);
+      face.moveTo(-25, -18); face.lineTo(-14, -18);
+      face.moveTo(14, -18); face.lineTo(25, -18);
+      face.lineStyle(2, dark);
+      face.moveTo(-7, 17); face.lineTo(7, 17);
+      face.lineStyle(0);
+      break;
+    }
 
-  if (emotion === "happy" || emotion === "proud") {
-    face.lineStyle(2, 0x5d4037);
-    face.arc(0, 10, 16, 0, Math.PI);
-    face.lineStyle(0);
-  } else if (emotion === "sad") {
-    face.lineStyle(2, 0x9a835a);
-    face.arc(0, 23, 13, Math.PI, Math.PI * 2);
-    face.lineStyle(0);
-  } else {
-    face.lineStyle(2, 0x5d4037);
-    face.moveTo(-12, 17);
-    face.lineTo(12, 17);
-    face.lineStyle(0);
+    // 平静-消极：半闭的扁眼 + 微垂眉 + 平嘴
+    case "calm_negative": {
+      face.beginFill(warm);
+      face.drawRoundedRect(-26, -9, 13, 3, 2);
+      face.drawRoundedRect(13, -9, 13, 3, 2);
+      face.endFill();
+      face.lineStyle(1.5, warm);
+      face.moveTo(-25, -16); face.lineTo(-14, -15);
+      face.moveTo(14, -15); face.lineTo(25, -16);
+      face.lineStyle(2, warm);
+      face.moveTo(-7, 17); face.lineTo(7, 17);
+      face.lineStyle(0);
+      break;
+    }
+
+    // 开心：弯弯的笑眼 + 大大的微笑嘴
+    case "happy": {
+      face.lineStyle(2.5, dark);
+      face.arc(-19, -6, 9, 0, Math.PI);
+      face.arc(19, -6, 9, 0, Math.PI);
+      face.lineStyle(2, dark);
+      face.arc(0, 10, 15, 0, Math.PI);
+      face.lineStyle(0);
+      break;
+    }
+
+    // 害羞：低垂半闭眼 + 脸颊红晕 + 小嘴
+    case "shy": {
+      face.beginFill(dark);
+      face.drawRoundedRect(-26, -7, 13, 3, 2);
+      face.drawRoundedRect(13, -7, 13, 3, 2);
+      face.endFill();
+      face.beginFill(0xff8a80, 0.45);
+      face.drawEllipse(-34, 2, 9, 6);
+      face.drawEllipse(34, 2, 9, 6);
+      face.endFill();
+      face.lineStyle(2, dark);
+      face.moveTo(-4, 17); face.lineTo(4, 17);
+      face.lineStyle(0);
+      break;
+    }
+
+    // 难过：下垂眼 + 八字眉 + 上弧难过的嘴
+    case "sad": {
+      face.beginFill(warm);
+      face.drawRoundedRect(-26, -9, 13, 4, 2);
+      face.drawRoundedRect(13, -9, 13, 4, 2);
+      face.endFill();
+      face.lineStyle(1.5, warm);
+      face.moveTo(-14, -19); face.lineTo(-25, -15);
+      face.moveTo(14, -19); face.lineTo(25, -15);
+      face.lineStyle(2, warm);
+      face.arc(0, 23, 13, Math.PI, Math.PI * 2);
+      face.lineStyle(0);
+      break;
+    }
+
+    // 骄傲：上扬眉 + 自信的微笑嘴
+    case "proud": {
+      face.beginFill(dark);
+      face.drawRoundedRect(-26, -10, 13, 5, 3);
+      face.drawRoundedRect(13, -10, 13, 5, 3);
+      face.endFill();
+      face.lineStyle(1.5, dark);
+      face.moveTo(-25, -19); face.lineTo(-14, -21);
+      face.moveTo(14, -21); face.lineTo(25, -19);
+      face.lineStyle(2, dark);
+      face.arc(0, 10, 13, 0, Math.PI);
+      face.lineStyle(0);
+      break;
+    }
+
+    // 兴奋：睁大的圆眼 + 高光 + O 形张嘴
+    case "excited": {
+      face.beginFill(dark);
+      face.drawRoundedRect(-27, -12, 15, 9, 4);
+      face.drawRoundedRect(12, -12, 15, 9, 4);
+      face.endFill();
+      face.beginFill(0xffffff, 0.85);
+      face.drawCircle(-22, -9, 2.2);
+      face.drawCircle(17, -9, 2.2);
+      face.endFill();
+      face.beginFill(dark);
+      face.drawCircle(0, 17, 5);
+      face.endFill();
+      break;
+    }
+
+    // 害怕：瞪大的圆眼 + 高光 + 高扬眉 + 颤抖的椭圆嘴
+    case "fearful": {
+      face.beginFill(dark);
+      face.drawCircle(-19, -8, 6);
+      face.drawCircle(19, -8, 6);
+      face.endFill();
+      face.beginFill(0xffffff, 0.9);
+      face.drawCircle(-21, -10, 2.2);
+      face.drawCircle(17, -10, 2.2);
+      face.endFill();
+      face.lineStyle(1.5, dark);
+      face.moveTo(-25, -21); face.lineTo(-14, -17);
+      face.moveTo(14, -17); face.lineTo(25, -21);
+      face.lineStyle(2, dark);
+      face.drawEllipse(0, 20, 4, 6);
+      face.lineStyle(0);
+      break;
+    }
   }
 }
 
