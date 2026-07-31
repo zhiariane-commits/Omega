@@ -40,7 +40,7 @@ export function CapsuleWindow({ state, updateState }: Props) {
             updateState({
               mood: Math.max(30, state.mood + 10),
               emotion: "calm_positive",
-              currentMode: "idle",
+              currentMode: "normal",
             }).catch(() => {});
             return 0;
           }

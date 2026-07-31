@@ -1,8 +1,11 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChatLine, OmegaAIResponse, OmegaEmotion, OmegaState } from "../types";
 import Live2DModel, { type AnimationId } from "../components/Live2DModel";
 import {
   getAffectionLevel,
+  getEffectiveIdleAction,
+  IDLE_ACTION_LABELS,
+  isActionModuleReady,
   isIdleActionExpired,
   isLowMood,
   pickIdleAction,
@@ -106,7 +109,10 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   busyRef.current = busy;
   const [animation, setAnimation] = useState<AnimationId>("idle");
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [idleHint, setIdleHint] = useState(false);
+  // 会话内是否处于待机状态（从持久化状态恢复时同步）
+  const [idleHint, setIdleHint] = useState(state.currentMode === "idle");
+  /** 用户交互计数器：任意交互都会 +1，用于重置 3 分钟待机倒计时 */
+  const [activityTick, setActivityTick] = useState(0);
   const [sleeping, setSleeping] = useState(false);
   const [sleepTimer, setSleepTimer] = useState(60);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -214,47 +220,47 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   }, []);
 
   // ---------- 通用唤醒 ----------
+  // 退出待机状态：清除待机动作循环，回到普通状态（普通状态保持视线鼠标跟随）
   const wakeUp = useCallback(() => {
     if (stateRef.current.currentMode === "sleep") return; // 睡觉模式不能唤醒
     if (idleTimer.current) clearTimeout(idleTimer.current);
     setIdleHint(false);
+    setActivityTick((t) => t + 1);
+    const mode = stateRef.current.currentMode;
     updateState({
-      currentMode: "idle",
+      currentMode: mode === "idle" ? "normal" : mode,
       lastActiveTime: Date.now(),
     }).catch(() => {});
   }, [updateState]);
 
-  // ---------- 3分钟待机检测 ----------
+  // ---------- 进入待机状态 ----------
+  // 非专注、未进行其他功能、未聊天时，保持 3 分钟无交互后进入待机状态
+  function enterIdle() {
+    const s = stateRef.current;
+    if (s.currentMode !== "normal") return;
+    const { action, duration } = pickIdleAction(s);
+    setIdleHint(true);
+    updateState({
+      currentMode: "idle",
+      currentIdleAction: action,
+      idleActionStart: Date.now(),
+      idleActionDuration: duration,
+    }).catch(() => {});
+  }
+
   useEffect(() => {
-    if (state.currentMode === "sleep") return;
-    if (state.currentMode === "focus") return;
-    if (state.currentMode === "chatting") return;
+    if (state.currentMode !== "normal") return;
+    if (panel || menu) return;
 
     if (idleTimer.current) clearTimeout(idleTimer.current);
     idleTimer.current = setTimeout(() => {
-      // 进入待机
-      const s = stateRef.current;
-      const { action, duration } = pickIdleAction(s);
-      setIdleHint(true);
-      updateState({
-        currentMode: "idle",
-        currentIdleAction: action,
-        idleActionStart: Date.now(),
-        idleActionDuration: duration,
-      }).catch(() => {});
+      enterIdle();
     }, 3 * 60 * 1000);
 
     return () => {
       if (idleTimer.current) clearTimeout(idleTimer.current);
     };
-  }, [
-    state.currentMode,
-    state.lastActiveTime,
-    state.mood,
-    state.affinity,
-    state.unlocked,
-    updateState,
-  ]);
+  }, [state.currentMode, activityTick, panel, menu, updateState]);
 
   // ---------- 待机行为轮换 ----------
   useEffect(() => {
@@ -304,7 +310,8 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
     if (elapsed < 3600_000) {
       // 设定定时器到 1h 触发
       const timer = setTimeout(() => {
-        if (stateRef.current.currentMode === "idle") {
+        const mode = stateRef.current.currentMode;
+        if (mode === "normal" || mode === "idle") {
           const topic = pickPeriodicTopic();
           updateState({ pendingMilestoneEvent: topic }).catch(() => {});
         }
@@ -337,7 +344,11 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       } else if (lastHiddenTime > 0) {
         // User returned after being away - simulate notification detection
         const awayMs = Date.now() - lastHiddenTime;
-        if (awayMs > 10000 && stateRef.current.currentMode === 'idle' && Math.random() < 0.4) {
+        const s = stateRef.current;
+        const isMouseFollowing =
+          s.currentMode === "normal" ||
+          (s.currentMode === "idle" && getEffectiveIdleAction(s.currentIdleAction) === "follow_mouse");
+        if (awayMs > 10000 && isMouseFollowing && Math.random() < 0.4) {
           setClickBubble('\u4F60\u597D\u50CF\u6709\u65B0\u6D88\u606F\u4E86\u3002');
           setTimeout(() => setClickBubble(null), 4000);
         }
@@ -374,7 +385,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
           const s = stateRef.current;
           // 恢复心境到 30
           updateState({
-            currentMode: "idle",
+            currentMode: "normal",
             mood: Math.max(30, s.mood + 10),
             emotion: "calm_positive",
           }).catch(() => {});
@@ -406,6 +417,8 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
     if (nextPanel && nextPanel !== "clickFeedback") {
       if (lowMoodBlock("panel")) return;
     }
+    wakeUp();
+    setMenu(null); // 打开面板时收起气泡菜单
     setPanel(nextPanel);
     if (nextPanel === "record") await refreshLog();
     if (nextPanel === "chat") {
@@ -423,14 +436,17 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       }
       setOmegaBubbleText(bubbleText);
     }
-    wakeUp();
   }
 
   const closePanel = useCallback(() => {
     setPanel(null);
     setMenu(null);
     setOmegaBubbleText(null);
-  }, []);
+    const s = stateRef.current;
+    if (s.currentMode === "chatting" || s.currentMode === "idle") {
+      updateState({ currentMode: "normal", lastActiveTime: Date.now() }).catch(() => {});
+    }
+  }, [updateState]);
 
   // ---------- 发送消息 ----------
   async function sendMessage(event: FormEvent) {
@@ -535,6 +551,11 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   // 低心境时气泡菜单是否特殊显示
   const moodLocked = isLowMood(state);
 
+  // 视线跟随：不进行动作（普通状态）或执行 follow_mouse（含未制作模组的占位）时跟随鼠标
+  const effectiveIdleAction =
+    state.currentMode === "idle" ? getEffectiveIdleAction(state.currentIdleAction) : "follow_mouse";
+  const gazeEnabled = state.currentMode !== "idle" || effectiveIdleAction === "follow_mouse";
+
 
   useEffect(() => {
     if (state.emotion === "sad" || state.emotion === "fearful") {
@@ -543,17 +564,6 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       setAnimation("idle");
     }
   }, [state.emotion]);
-
-  // 待机行为的中文标签
-  const idleActionLabel: Record<string, string> = {
-    follow_mouse: "看着你这边",
-    stare: "望着窗外发呆",
-    read: "在看书",
-    write: "在写些什么",
-    water_plants: "在浇花",
-    wooden_sign: "在修理木牌",
-    sleep: "在睡觉",
-  };
 
   return (
     <main className="floating-shell" ref={containerRef} onClick={wakeUp}>
@@ -569,7 +579,8 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       {/* 待机提示气泡 */}
       {idleHint && !panel && !menu && (
         <p className="idle-indicator">
-          Ω{idleActionLabel[state.currentIdleAction] ?? "在发呆"}
+          Ω{IDLE_ACTION_LABELS[state.currentIdleAction] ?? "在发呆"}
+          {isActionModuleReady(state.currentIdleAction) ? "" : "（调试中）"}
         </p>
       )}
 
@@ -600,7 +611,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       {/* Omega chat bubble */}
       {/* Ω 角色 */}
       {panel === "chat" && omegaBubbleText && (
-        <section className="omega-chat-bubble">
+        <section className="omega-chat-bubble" aria-label="Ω 对话">
           <p>{omegaBubbleText.slice(0, displayedChars)}{isTyping ? "…" : ""}</p>
           {isTyping && <span className="omega-chat-bubble__typing">………</span>}
         </section>
@@ -608,8 +619,8 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
 
       <p className="status-line">
         Ω · {emotionLabel[state.emotion]} · 好感 {state.affinity}
-        {state.currentMode === "idle" && idleHint || state.currentMode === "focus" &&
-          ` · ${idleActionLabel[state.currentIdleAction] ?? ""}`}
+        {idleHint || (state.currentMode === "focus" &&
+          ` · ${IDLE_ACTION_LABELS[state.currentIdleAction] ?? ""}`)}
       </p>
 
       <button
@@ -648,6 +659,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
           scale={0.85}
           emotion={state.emotion}
           mousePos={mousePos}
+          gazeEnabled={gazeEnabled}
         />
       </button>
 
@@ -808,6 +820,16 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       {/* Chat controls below omega */}
       {panel === "chat" && (
         <section className="chat-controls">
+          {recentLines.length > 0 && (
+            <div className="chat-recent">
+              {recentLines.map((line, idx) => (
+                <p key={`${line.createdAt}-${idx}`} className={`chat-recent__line chat-recent__line--${line.speaker}`}>
+                  <strong>{line.speaker === "omega" ? "Ω" : state.nickname || "你"}：</strong>
+                  {line.text}
+                </p>
+              ))}
+            </div>
+          )}
           {agentOptions.length > 0 && !isTyping && !busy && (
             <div className="narrative-options">
               {agentOptions.map((opt, idx) => (
@@ -850,6 +872,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
             <button
               type="button"
               className="chat-close-btn"
+              aria-label="关闭聊天"
               onClick={(e) => {
                 e?.stopPropagation();
                 closePanel();
@@ -1387,7 +1410,7 @@ function FocusPanel({
     const total = accumulatedRef.current + elapsed;
     accumulatedRef.current = total;
     await updateState({
-      currentMode: "idle",
+      currentMode: "normal",
       totalFocusTime: total,
     });
     setClickBubble(`这次专注了 ${Math.floor(elapsed / 60)} 分 ${elapsed % 60} 秒`);

@@ -1,4 +1,4 @@
-import { Application, BaseTexture, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
+﻿import { Application, BaseTexture, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { OmegaEmotion, OmegaState } from "../types";
 import { ALL_RECIPES } from "../systems/crafting";
@@ -232,7 +232,7 @@ export default function Room2Scene({
           previewG.drawRoundedRect(0, 0, 36, 36, 6);
           previewG.lineStyle(0);
           preview.addChild(previewG);
-          const previewText = new Text(label, {
+          const previewText = new Text(DECO_EMOJIS[itemId] ?? "❓", {
             fill: color,
             fontSize: 16,
             fontWeight: "700",

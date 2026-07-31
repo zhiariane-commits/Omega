@@ -12,6 +12,8 @@ interface Live2DModelProps {
   emotion?: OmegaEmotion;
   mousePos?: { x: number; y: number };
   animationId?: AnimationId;
+  /** 视线是否跟随鼠标（发呆等动作时关闭） */
+  gazeEnabled?: boolean;
 }
 
 const modelPaths: Record<AnimationId, string> = {
@@ -94,6 +96,7 @@ export default function OmegaLive2DModel({
   emotion = "calm_negative",
   mousePos = { x: 0.5, y: 0.5 },
   animationId = "idle",
+  gazeEnabled = true,
 }: Live2DModelProps) {
   const [modelReady, setModelReady] = useState(false);
   const divRef = useRef<HTMLDivElement>(null);
@@ -117,7 +120,6 @@ export default function OmegaLive2DModel({
         antialias: true,
         resolution: Math.max(window.devicePixelRatio || 1, 2),
         autoDensity: true,
-        roundPixels: true,
       });
       el.appendChild(app.view as HTMLCanvasElement);
       appRef.current = app;
@@ -210,19 +212,28 @@ export default function OmegaLive2DModel({
       } catch {}
     };
     ticker.add(forceMouth);
-    return () => ticker.remove(forceMouth);
+    return () => {
+      ticker.remove(forceMouth);
+    };
   }, [emotion, modelReady]);
 
-  // Eye tracking
+  // Eye tracking (gazeEnabled=false 时视线回到正中，不跟随鼠标)
   useEffect(() => {
     const m = modelRef.current;
     if (!m) return;
     try {
-      const eyeX = -(mousePos.x - 0.5) * 12;
-      const eyeY = (mousePos.y - 0.5) * 12;
-
       const core = m.internalModel?.coreModel;
       if (core && typeof core.setParameterValueById === "function") {
+        if (!gazeEnabled) {
+          core.setParameterValueById("ParamEyeBallX", 0);
+          core.setParameterValueById("ParamEyeBallY", 0);
+          core.setParameterValueById("ParamAngleX", 0);
+          core.setParameterValueById("ParamAngleY", 0);
+          return;
+        }
+        const eyeX = -(mousePos.x - 0.5) * 12;
+        const eyeY = (mousePos.y - 0.5) * 12;
+
         core.setParameterValueById("ParamEyeBallX", eyeX);
         core.setParameterValueById("ParamEyeBallY", eyeY);
         const angleX = -(mousePos.x - 0.5) * 10;
@@ -231,7 +242,7 @@ export default function OmegaLive2DModel({
         core.setParameterValueById("ParamAngleY", angleY);
       }
     } catch {}
-  }, [mousePos]);
+  }, [mousePos, gazeEnabled]);
 
   return (
     <div ref={divRef} style={{ width: "100%", height: "100%", overflow: "hidden" }} />

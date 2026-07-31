@@ -1,4 +1,4 @@
-import type { ChatLine, OmegaAIResponse, OmegaState } from "./types";
+﻿import type { ChatLine, OmegaAIResponse, OmegaState } from "./types";
 
 const defaultState: OmegaState = {
   nickname: "",
@@ -194,7 +194,12 @@ export function installBrowserBridge() {
         saveState(next);
         return next;
       },
-      getSessionLog: async () => [...sessionLog]
+      getSessionLog: async () => [...sessionLog],
+      clearChatMemory: async () => {
+        sessionLog.length = 0;
+        saveMemories([]);
+        return true;
+      },
     },
     memory: {
       saveSummary: async (summary: string) => {

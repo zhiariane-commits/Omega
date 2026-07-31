@@ -1,4 +1,4 @@
-/**
+﻿/**
  * M0 开篇序章 — 完整演出流程
  *
  * Phase 0: Black — 2秒黑屏
@@ -39,7 +39,7 @@ const FADE_DURATION = 1000;
 const introSteps: DialogueStep[] = [
   { role: "omega_text", text: "你好，能听到我说话吗？", emotion: "calm_negative" },
   { role: "player_choice", options: ["你是谁？"] },
-  { role: "omega_text", text: "……居然不是幻觉。我是Ω，也可以叫我欧米伺，蓝星星际研究院资料室的实习生。", emotion: "calm_positive" },
+  { role: "omega_text", text: "……居然不是幻觉。我是Ω，也可以叫我欧米伽，蓝星星际研究院资料室的实习生。", emotion: "calm_positive" },
   { role: "player_choice", options: ["你为什么会出现在我的电脑上？"] },
   { role: "omega_text", text: "不知道，我们的世界亡灭了，我已经很久没和人这样说过话了。", emotion: "calm_negative" },
   { role: "omega_text", text: "我该怎么称呼你？", emotion: "calm_positive" },
@@ -185,7 +185,7 @@ export default function M0Prologue({ state, updateState }: Props) {
   // ---------- Finish prologue ----------
   const finishPrologue = useCallback(async () => {
     await updateState({
-      prologueDone: true, currentMode: "idle",
+      prologueDone: true, currentMode: "normal",
       mood: Math.max(30, state.mood + 5), affinity: Math.max(0, state.affinity + 1),
       emotion: "calm_positive", lastActiveTime: Date.now(),
     });

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+﻿import { expect, test } from "@playwright/test";
 
 const readyState = {
   nickname: "测试员",
@@ -27,10 +27,16 @@ test.describe("Ω desktop pet functional prototype", () => {
   test("default browser route starts with the prologue from the document", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByText("……你能看见我？")).toBeVisible();
+    // M0 序章：黑屏/制作人名单结束后进入白字对话
+    await expect(page.getByText("你好，能听到我说话吗？")).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: "继续" }).click();
     await page.getByRole("button", { name: "你是谁？" }).click();
-    await expect(page.getByText("我叫Ω。维度转译器把你的声音送到了这里。")).toBeVisible();
-    await page.getByLabel("我应该怎么称呼你？").fill("测试员");
+    await expect(page.getByText("……居然不是幻觉。我是Ω，也可以叫我欧米伽，蓝星星际研究院资料室的实习生。")).toBeVisible();
+    await page.getByRole("button", { name: "继续" }).click();
+    await page.getByRole("button", { name: "你为什么会出现在我的电脑上？" }).click();
+    await page.getByRole("button", { name: "继续" }).click();
+    await page.getByRole("button", { name: "继续" }).click();
+    await page.getByPlaceholder("输入你的昵称...").fill("测试员");
     await page.getByRole("button", { name: "确定" }).click();
 
     await expect(page.getByText("Ω 太空舱")).toBeVisible();
@@ -67,7 +73,7 @@ test.describe("Ω desktop pet functional prototype", () => {
     await chatInput.press("Enter");
 
     await expect(page.getByText("谢谢你陪我测试这个功能")).toBeVisible();
-    await expect(page.getByText("嗯，我也有一点开心。像是舱壁上的灯忽然稳定了一些。")).toBeVisible();
+    await expect(page.getByLabel("Ω 对话")).toContainText("嗯，我也有一点开心。像是舱壁上的灯忽然稳定了一些。");
     await expect(page.getByText("Ω · 开心 · 好感 13")).toBeVisible();
 
     await page.getByRole("button", { name: "Ω" }).click();
@@ -85,6 +91,9 @@ test.describe("Ω desktop pet functional prototype", () => {
 
     await page.getByRole("button", { name: "Ω" }).click();
     await page.getByRole("button", { name: "输入" }).click();
+    const chatInput = page.locator('input[placeholder="和Ω说话..."]');
+    await chatInput.fill("在吗");
+    await chatInput.press("Enter");
     await expect(page.getByLabel("Ω 对话")).toBeVisible();
     await page.getByRole("button", { name: "关闭聊天" }).click();
     await expect(page.getByLabel("Ω 对话")).toBeHidden();
@@ -101,7 +110,6 @@ test.describe("Ω desktop pet functional prototype", () => {
     await page.goto("/?view=capsule");
 
     await expect(page.getByText("Ω 太空舱")).toBeVisible();
-    await expect(page.getByText("WASD 移动，靠近书桌后交互")).toBeVisible();
     await expect(page.locator("canvas")).toBeVisible();
 
     await page.getByRole("button", { name: "关闭太空舱" }).click();

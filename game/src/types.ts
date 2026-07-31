@@ -59,7 +59,8 @@ export type OmegaState = {
   mood: number;
   affinity: number;
   emotion: OmegaEmotion;
-  currentMode: "idle" | "chatting" | "capsule" | "prologue" | "focus" | "sleep";
+  /** normal=普通状态 idle=待机状态 chatting=聊天 focus=专注 capsule=太空舱 prologue=序章 sleep=睡觉 */
+  currentMode: "normal" | "idle" | "chatting" | "capsule" | "prologue" | "focus" | "sleep";
   floatingPosition?: { x: number; y: number };
   unlocked: {
     activeGreeting: boolean;
