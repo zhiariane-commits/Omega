@@ -85,17 +85,34 @@ export function CapsuleScene({
       hostElement.appendChild(app.view as unknown as Node);
       app.stage.sortableChildren = true;
 
+      // 当前 init 是否仍是“有效”的那个：React 重挂载/依赖变化会销毁旧 app，
+      // 旧 init 的异步 await 返回后不能再继续操作已销毁的实例。
+      function appAlive() {
+        return !disposed && appRef.current === app && !!app.renderer;
+      }
+
+      function abortIfStale(): boolean {
+        if (appAlive()) return false;
+        // renderer 还在说明 app 尚未被销毁，主动释放避免泄漏
+        if (app.renderer) {
+          try { app.destroy(true); } catch {}
+        }
+        return true;
+      }
+
       // --- Background image layer ---
       try {
         const capsuleBgTexture = await loadImageAsTexture(
           app.renderer as unknown as import("pixi.js").Renderer,
           "/capusle/capsule-bg.png"
         );
+        if (abortIfStale()) return;
         const bgSprite = new Sprite(capsuleBgTexture);
         bgSprite.width = app.screen.width;
         bgSprite.height = app.screen.height;
         app.stage.addChildAt(bgSprite, 0);
       } catch (err) {
+        if (abortIfStale()) return;
         console.warn("Capsule background load failed, using fallback", err);
         const fallback = new Graphics();
         fallback.beginFill(0x0a1219);
@@ -111,6 +128,7 @@ export function CapsuleScene({
           app.renderer as unknown as import("pixi.js").Renderer,
           "/capusle/desk.png"
         );
+        if (abortIfStale()) return;
         const tableSprite = new Sprite(tableTexture);
         const tableHeight = app.screen.height * 0.25;
         tableSprite.anchor.set(0.5, 1);
@@ -121,6 +139,7 @@ export function CapsuleScene({
         tableSpriteRef.current = tableSprite;
         app.stage.addChildAt(tableSprite, 1);
       } catch (err) {
+        if (abortIfStale()) return;
         console.warn("Capsule table load failed", err);
       }
       // --- Decoration overlays ---
@@ -143,8 +162,10 @@ export function CapsuleScene({
           "/live2d/omega-transparent.png"
         );
       } catch (err) {
+        if (abortIfStale()) return;
         console.warn("Omega image load failed, using fallback draw", err);
       }
+      if (abortIfStale()) return;
 
       const { root: player, face: initialFace } = drawOmega(emotion, omegaTexture);
       faceRef.current = initialFace;
@@ -210,6 +231,7 @@ export function CapsuleScene({
 
       // --- Tick loop ---
       app.ticker.add((dt: number) => {
+        if (!appAlive()) return;
         const speed = 3.1 * dt;
         const pos = positionRef.current;
         if (keysRef.current.has("w")) pos.y -= speed;
@@ -296,8 +318,12 @@ export function CapsuleScene({
       disposed = true;
       window.removeEventListener("keydown", keyDown);
       window.removeEventListener("keyup", keyUp);
-      appRef.current?.destroy(true);
+      const current = appRef.current;
       appRef.current = null;
+      if (current) {
+        try { current.ticker.stop(); } catch {}
+        try { current.destroy(true); } catch {}
+      }
       hostElement.replaceChildren();
     };
   }, [prologueDone, lowMood, mood, room2Unlocked, equippedDecorations, capsuleBackgroundDirty]);

@@ -68,7 +68,8 @@ async function createAndAttachModel(
   // Guard: app.destroy() sets renderer=null, which makes app.screen getter crash
   if (!app || !app.renderer) {
     console.warn("[Live2D] app destroyed before model finished loading");
-    return model;
+    try { model.destroy(); } catch {}
+    return null;
   }
   const screenW = app.screen.width;
   const screenH = app.screen.height;
@@ -130,6 +131,12 @@ export default function OmegaLive2DModel({
     const path = modelPaths[animationId] || modelPaths.idle;
     createAndAttachModel(app, path, scale, emotion)
       .then((model) => {
+        if (!model) return;
+        // 异步加载期间 app 可能已被卸载/替换，此时丢弃新模型，避免泄漏在全局 ticker 上
+        if (!appRef.current || appRef.current !== app || !appRef.current.renderer) {
+          try { model.destroy(); } catch {}
+          return;
+        }
         modelRef.current = model;
         setModelReady(true);
       })
@@ -182,6 +189,11 @@ export default function OmegaLive2DModel({
 
     createAndAttachModel(app, path, scale, emotion)
       .then((model) => {
+        if (!model) return;
+        if (!appRef.current || appRef.current !== app || !appRef.current.renderer) {
+          try { model.destroy(); } catch {}
+          return;
+        }
         modelRef.current = model;
         prevAnimRef.current = animationId;
         setModelReady(true);
@@ -213,7 +225,8 @@ export default function OmegaLive2DModel({
     };
     ticker.add(forceMouth);
     return () => {
-      ticker.remove(forceMouth);
+      // app.destroy(true) 会销毁 ticker（_head=Null），此时 remove 会抛错
+      try { ticker.remove(forceMouth); } catch {}
     };
   }, [emotion, modelReady]);
 

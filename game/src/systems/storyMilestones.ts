@@ -95,6 +95,14 @@ export function isM2CleanStoryPending(state: OmegaState): boolean {
   );
 }
 
+/** M2 剧情是否处于「清理中」阶段（已同意打扫，等待下次启动完成） */
+export function isM2CleanInProgress(state: OmegaState): boolean {
+  return (
+    state.m2CleanAgreedAt != null &&
+    !(state.completedMilestones ?? []).includes("m2_clean_capsule")
+  );
+}
+
 /* ---------- 里程碑检查 ---------- */
 
 export type MilestoneCheck = {

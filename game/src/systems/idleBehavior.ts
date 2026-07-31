@@ -12,6 +12,7 @@
  */
 
 import type { OmegaIdleAction, OmegaState } from "../types";
+import { isM2CleanInProgress } from "./storyMilestones";
 
 /** 单个行为的权重配置 */
 type WeightEntry = {
@@ -146,6 +147,8 @@ export function getAffectionLevel(affinity: number): "low" | "medium" | "high" {
 function buildWeights(state: OmegaState): WeightEntry[] {
   const { mood, unlocked, currentMode } = state;
   const hasConstruction = unlocked.construction;
+  // M2 清扫剧情进行中（已同意打扫，等待下次启动完成）
+  const m2Cleaning = isM2CleanInProgress(state);
 
   // 专注模式：固定行为循环（功能状态，动作模组暂未制作 → 统一占位跟随鼠标）
   if (currentMode === "focus") {
@@ -207,9 +210,9 @@ function buildWeights(state: OmegaState): WeightEntry[] {
     });
   }
 
-  // 后台有建造项目（且心境 >= 100）：
+  // M5 建造 / M2 清扫 剧情进行中（且心境 >= 100）：
   // 木牌 5min(40%) / 跟随鼠标 5min(20%) / 发呆1min=看书2min=写作2min=浇花1min 共 40%
-  if (hasConstruction && mood >= 100) {
+  if ((hasConstruction || m2Cleaning) && mood >= 100) {
     const woodEntries: WeightEntry[] = [
       {
         action: "wooden_sign",

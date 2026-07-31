@@ -1,10 +1,12 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChatLine, OmegaAIResponse, OmegaEmotion, OmegaState } from "../types";
+import type { ChatLine, OmegaAIResponse, OmegaEmotion, OmegaIdleAction, OmegaState } from "../types";
 import Live2DModel, { type AnimationId } from "../components/Live2DModel";
 import {
   getAffectionLevel,
   getEffectiveIdleAction,
+  getEffectiveIdleDuration,
   IDLE_ACTION_LABELS,
+  IDLE_ACTION_MODULES,
   isActionModuleReady,
   isIdleActionExpired,
   isLowMood,
@@ -295,6 +297,11 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       }
     };
   }, [state.currentMode, updateState]);
+
+  // ---------- 待机提示同步（开发者预览等直接进入 idle 时也显示提示） ----------
+  useEffect(() => {
+    if (state.currentMode === "idle") setIdleHint(true);
+  }, [state.currentMode]);
 
   // ---------- 里程碑检测 ----------
   useEffect(() => {
@@ -1029,6 +1036,21 @@ function DevPanel({
     setTimeout(() => setClickBubble(null), 3000);
   }
 
+  // ---------- 待机动作预览（无视条件触发，结束后回归正常循环） ----------
+  async function previewIdleAction(action: OmegaIdleAction) {
+    const duration = getEffectiveIdleDuration(action, IDLE_ACTION_MODULES[action].duration);
+    await updateState({
+      currentMode: "idle",
+      currentIdleAction: action,
+      idleActionStart: Date.now(),
+      idleActionDuration: duration,
+      lastActiveTime: Date.now(),
+    });
+    const label = IDLE_ACTION_LABELS[action] ?? action;
+    setClickBubble("已预览待机动作：" + label + "（" + Math.round(duration / 60000) + " 分钟）");
+    setTimeout(() => setClickBubble(null), 2500);
+  }
+
   const milestoneLabels: Record<string, string> = {
     m1_first_greeting: "M1 首次问候 (mood > 50)",
     m2_clean_asked: "M2 提醒打扫 (已提醒，等待太空舱对话)",
@@ -1043,7 +1065,7 @@ function DevPanel({
   const completedSet = new Set(state.completedMilestones ?? []);
 
   return (
-    <section className="floating-panel dev-panel">
+    <section className="floating-panel dev-panel" onClick={(e) => e?.stopPropagation()}>
       <header className="dev-panel__header">
         <h2>开发者选项</h2>
         <button type="button" onClick={onClose}>
@@ -1102,6 +1124,35 @@ function DevPanel({
             </button>
           </div>
           <span className="dev-panel__current">当前: {state.affinity}</span>
+        </div>
+
+        {/* 待机动作预览（无视条件） */}
+        <div className="dev-panel__actions">
+          <label>待机动作预览</label>
+          <p className="dev-panel__hint">无视心境/解锁/建造条件直接触发，动作时长结束后自动回归正常待机动作循环</p>
+          <div className="dev-panel__action-list">
+            {(["follow_mouse", "stare", "read", "write", "water_plants", "wooden_sign"] as OmegaIdleAction[]).map((action) => {
+              const duration = getEffectiveIdleDuration(action, IDLE_ACTION_MODULES[action].duration);
+              const ready = isActionModuleReady(action);
+              const active = state.currentMode === "idle" && state.currentIdleAction === action;
+              return (
+                <button
+                  key={action}
+                  type="button"
+                  className={`dev-panel__action-btn ${active ? "dev-panel__action-btn--active" : ""}`}
+                  onClick={(e) => { e?.stopPropagation(); void previewIdleAction(action); }}
+                >
+                  {IDLE_ACTION_LABELS[action] ?? action}
+                  <span className="dev-panel__action-meta">
+                    {Math.round(duration / 60000)}min{ready ? "" : " · 占位"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <span className="dev-panel__current">
+            当前: {state.currentMode === "idle" ? (IDLE_ACTION_LABELS[state.currentIdleAction] ?? "—") : "非待机状态"}
+          </span>
         </div>
 
         <hr className="dev-panel__divider" />
