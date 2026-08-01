@@ -65,6 +65,7 @@ async function createAndAttachModel(
   path: string,
   scale: number,
   emotion: string,
+  motionName?: string,
 ) {
   const model = await PixiL2D.from(path, { autoUpdate: true, autoInteract: true });
   model.anchor.set(0.5, 0.5);
@@ -91,6 +92,11 @@ async function createAndAttachModel(
   app.stage.addChild(model);
 
   setModelExpression(model, emotion);
+
+  // 单击模型：加载后立即播放点击动画（点击动画为循环 motion）
+  if (motionName) {
+    try { model.motion(motionName); } catch {}
+  }
 
   return model;
 }
@@ -133,7 +139,7 @@ export default function OmegaLive2DModel({
     }
 
     const path = modelPaths[animationId] || modelPaths.idle;
-    createAndAttachModel(app, path, scale, emotion)
+    createAndAttachModel(app, path, scale, emotion, animationId === "click" ? "click" : undefined)
       .then((model) => {
         if (!model) return;
         // 异步加载期间 app 可能已被卸载/替换，此时丢弃新模型，避免泄漏在全局 ticker 上
@@ -191,7 +197,7 @@ export default function OmegaLive2DModel({
       modelRef.current = null;
     }
 
-    createAndAttachModel(app, path, scale, emotion)
+    createAndAttachModel(app, path, scale, emotion, animationId === "click" ? "click" : undefined)
       .then((model) => {
         if (!model) return;
         if (!appRef.current || appRef.current !== app || !appRef.current.renderer) {

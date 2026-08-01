@@ -145,14 +145,6 @@
 	"ParameterGroups": [],
 	"Parts": [
 		{
-			"Id": "Part11",
-			"Name": "桌面状态.psd(未找到对应图层)"
-		},
-		{
-			"Id": "Part10",
-			"Name": "桌面状态.psd(未找到对应图层)"
-		},
-		{
 			"Id": "Part9",
 			"Name": "桌面状态.psd(未找到对应图层)"
 		},
@@ -181,10 +173,6 @@
 		[
 			"ParamEyeBallX",
 			"ParamEyeBallY"
-		],
-		[
-			"ParamMouthForm",
-			"ParamMouthOpenY"
 		]
 	]
 }
