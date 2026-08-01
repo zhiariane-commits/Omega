@@ -1,0 +1,15 @@
+---
+description: Ω 项目宪法速览（规范源为根目录 AGENTS.md）
+globs: ["*", "game/**"]
+---
+
+# Ω 项目宪法（速览）
+
+完整宪法见根目录 `AGENTS.md`（唯一规范源），任何开发/修改前必须阅读并遵守。要点：
+
+- 技术栈：Electron + React 19 + TypeScript（strict）+ Vite + PixiJS/Live2D + Playwright；**npm** 管理，工程在 `game/`，所有命令在 `game/` 下执行。
+- 玩法依据：`设计文档/整体效果预估案.doc`；`game/README.md`“暂未实现”清单属于范围外，不主动实现。
+- 每次修改后必做：`npm run typecheck`；涉及交互/构建时跑 `npm run test:e2e` 与 `npm run build`。
+- 类型/状态变更须同步：`src/types.ts` ↔ `electron/main.ts` ↔ `electron/preload.ts` ↔ `src/browserBridge.ts` ↔ `vite.config.ts`；默认状态三处一致（main.ts / browserBridge.ts / App.tsx）。
+- 不提交：`设计文档/`、`新建文件夹 美工/`、`node_modules/`、`dist*`、`*.log`、`playwright-report/`、`test-results/`、真实密钥。
+- 风格：2 空格、双引号、分号；源文件 UTF-8；中文文案。
