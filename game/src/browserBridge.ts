@@ -100,9 +100,11 @@ function inferReply(text: string, state: OmegaState): OmegaAIResponse {
         : /游戏|原神|每日|体力/.test(text)
           ? "game"
           : null;
-  const sad = /难过|累|烦|孤独|讨厌|哭|sad|tired/i.test(text);
+  const sad = /难过|累|烦|孤独|哭|伤心|悲伤|sad|tired/i.test(text);
+  const angry = /生气|愤怒|气死|火大|angry|mad/i.test(text);
+  const confused = /奇怪|为什么|怎么回事|疑惑|不明白|confused/i.test(text);
   const happy = /开心|喜欢|谢谢|太好了|可爱|棒|happy|love/i.test(text);
-  const emotion = sad ? "sad" : happy ? "happy" : featureIntent === "capsule" ? "proud" : "calm_positive";
+  const emotion = sad ? "sad" : angry ? "angry" : confused ? "confused" : happy ? "happy" : featureIntent === "capsule" ? "proud" : "calm_positive";
   const moodDelta = sad ? -1 : 1;
   const affinityDelta = sad ? 0 : 1;
   const nextState: OmegaState = {

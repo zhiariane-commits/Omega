@@ -32,14 +32,17 @@ type Props = {
 };
 
 const emotionLabel: Record<OmegaState["emotion"], string> = {
-  calm_positive: "平静",
-  calm_negative: "低落",
+  calm_positive: "平静（愉悦）",
+  calm_negative: "平静（消沉）",
   happy: "开心",
-  shy: "害羞",
-  sad: "难过",
+  expectant: "期待",
+  shy: "羞涩",
   proud: "骄傲",
-  excited: "兴奋",
-  fearful: "害怕",
+  confused: "疑惑",
+  sad: "悲伤",
+  down: "低落",
+  angry: "愤怒",
+  fearful: "恐惧",
 };
 
 /**
@@ -50,10 +53,18 @@ function getClickFeedback(state: OmegaState): string {
   const e = state.emotion;
 
   // 消极情绪
-  if (e === "sad" || e === "calm_negative") {
+  if (e === "sad" || e === "down" || e === "calm_negative") {
     if (lv === "low") return "Ω轻轻缩了缩肩膀，像是想把什么藏起来。";
     if (lv === "medium") return "Ω勉强对你笑了一下，睫毛上还有一点水光。";
     return "Ω靠过来很近，呼吸落在玻璃上，化成一小片雾。";
+  }
+
+  if (e === "angry") {
+    return "Ω别过脸去，抿紧了嘴，过了好一会儿才慢慢转回来。";
+  }
+
+  if (e === "confused") {
+    return "Ω歪了歪头，眼神里带着一点没想明白的困惑。";
   }
 
   if (e === "fearful") {
@@ -569,7 +580,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
 
 
   useEffect(() => {
-    if (state.emotion === "sad" || state.emotion === "fearful") {
+    if (state.emotion === "sad" || state.emotion === "down" || state.emotion === "fearful" || state.emotion === "angry") {
       setAnimation("angry");
     } else if (animation === "angry") {
       setAnimation("idle");
@@ -1202,7 +1213,7 @@ function DevPanel({
         <div className="dev-panel__row">
           <label>情绪状态</label>
           <div className="dev-panel__input-group" style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-            {(["calm_positive","calm_negative","happy","shy","sad","proud","excited","fearful"] as const).map((em) => (
+            {(["calm_positive","calm_negative","happy","expectant","shy","proud","confused","sad","down","angry","fearful"] as const).map((em) => (
               <button
                 key={em}
                 type="button"

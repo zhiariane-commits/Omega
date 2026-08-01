@@ -26,17 +26,21 @@ const expressionNames: Record<string, string> = {
   calm_positive: "calm_positive",
   calm_negative: "calm_negative",
   happy: "happy",
+  expectant: "expectant",
   shy: "shy",
-  sad: "sad",
   proud: "proud",
-  excited: "excited",
+  confused: "confused",
+  sad: "sad",
+  down: "down",
+  angry: "angry",
   fearful: "fearful",
 };
 
 function getMouthOpenValue(emotion: string): number {
   // NOTE: this model's ParamMouthOpenY is inverted (1 = closed, 0 = open)
-  return emotion === "excited" || emotion === "fearful" ? 0.6 :
+  return emotion === "expectant" || emotion === "fearful" ? 0.6 :
          emotion === "happy" ? 0.9 :
+         emotion === "confused" || emotion === "angry" ? 0.95 :
          emotion === "sad" ? 0.92 :
          1;
 }
@@ -87,6 +91,9 @@ async function createAndAttachModel(
   app.stage.addChild(model);
 
   setModelExpression(model, emotion);
+
+  // TEMP-DEBUG: expose model for inspection
+  (window as any).__omegaModel = model;
 
   return model;
 }

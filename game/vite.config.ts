@@ -65,7 +65,7 @@ function parseJsonResponse(raw: string): Partial<OmegaAIResponse> | null {
 
 function normalizeAIResponse(response: Partial<OmegaAIResponse> | null, fallbackText: string): OmegaAIResponse | null {
   if (!response?.reply) return null;
-  const allowedEmotions: OmegaEmotion[] = ["calm_positive", "calm_negative", "happy", "shy", "sad", "proud", "excited", "fearful"];
+  const allowedEmotions: OmegaEmotion[] = ["calm_positive", "calm_negative", "happy", "shy", "sad", "proud", "expectant", "confused", "down", "angry", "fearful"];
   const allowedIntent: FeatureIntent[] = ["alarm", "focus", "capsule", "game", null];
   const emotion = allowedEmotions.includes(response.emotion as OmegaEmotion)
     ? (response.emotion as OmegaEmotion)
@@ -118,7 +118,7 @@ async function handleAiRequest(request: IncomingMessage, response: ServerRespons
           {
             role: "system",
             content:
-              "你是桌面宠游戏角色惟。用中文、简短、内向但温柔的语气回应玩家。不要总是重复同一句话，要根据玩家输入和记忆变化措辞。必须只返回JSON，不要Markdown。字段为 reply, emotion, moodDelta, affinityDelta, memorySummary, featureIntent。emotion只能是 calm_positive, calm_negative, happy, shy, sad, proud, excited, fearful。featureIntent只能是 alarm, focus, capsule, game, null。"
+              "你是桌面宠游戏角色惟。用中文、简短、内向但温柔的语气回应玩家。不要总是重复同一句话，要根据玩家输入和记忆变化措辞。必须只返回JSON，不要Markdown。字段为 reply, emotion, moodDelta, affinityDelta, memorySummary, featureIntent。emotion只能是 happy(开心), expectant(期待), shy(羞涩), proud(骄傲), calm_positive(平静-愉悦), confused(疑惑), calm_negative(平静-消沉), sad(悲伤), down(低落), angry(愤怒), fearful(恐惧)。featureIntent只能是 alarm, focus, capsule, game, null。"
           },
           {            content: `?????${memories.join(" / ") || "??"}\n???${text}\n????????? narrativeChoices?2-4???????????????????????????`
           }

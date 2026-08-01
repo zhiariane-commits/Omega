@@ -538,7 +538,7 @@ function drawOmega(emotion: OmegaEmotion, texture: Texture | undefined): { root:
   }
 
   const moodGlow = new Graphics();
-  const glowColor = emotion === "sad" || emotion === "calm_negative" ? 0x9a835a : 0x19c8b9;
+  const glowColor = emotion === "sad" || emotion === "down" || emotion === "angry" || emotion === "fearful" || emotion === "calm_negative" ? 0x9a835a : 0x19c8b9;
   moodGlow.beginFill(glowColor, 0.2);
   moodGlow.drawEllipse(0, 140, 57, 13);
   moodGlow.endFill();
@@ -645,8 +645,8 @@ function drawFaceGraphics(face: Graphics, emotion: OmegaEmotion) {
       break;
     }
 
-    // 兴奋：睁大的圆眼 + 高光 + O 形张嘴
-    case "excited": {
+    // 期待：睁大的眼睛 + 上扬眉 + 微张小嘴
+    case "expectant": {
       face.beginFill(dark);
       face.drawRoundedRect(-27, -12, 15, 9, 4);
       face.drawRoundedRect(12, -12, 15, 9, 4);
@@ -655,9 +655,57 @@ function drawFaceGraphics(face: Graphics, emotion: OmegaEmotion) {
       face.drawCircle(-22, -9, 2.2);
       face.drawCircle(17, -9, 2.2);
       face.endFill();
+      face.lineStyle(1.5, dark);
+      face.moveTo(-25, -21); face.lineTo(-14, -24);
+      face.moveTo(14, -24); face.lineTo(25, -21);
+      face.lineStyle(2, dark);
+      face.drawEllipse(0, 19, 4, 5);
+      face.lineStyle(0);
+      break;
+    }
+
+    // 疑惑：一高一低的眉毛 + 小圆嘴
+    case "confused": {
       face.beginFill(dark);
-      face.drawCircle(0, 17, 5);
+      face.drawRoundedRect(-26, -10, 13, 5, 3);
+      face.drawRoundedRect(13, -10, 13, 5, 3);
       face.endFill();
+      face.lineStyle(1.5, dark);
+      face.moveTo(-25, -20); face.lineTo(-14, -23);
+      face.moveTo(14, -19); face.lineTo(25, -16);
+      face.lineStyle(2, dark);
+      face.drawCircle(0, 18, 2.5);
+      face.lineStyle(0);
+      break;
+    }
+
+    // 低落：半垂的眼 + 平垂的嘴
+    case "down": {
+      face.beginFill(warm);
+      face.drawRoundedRect(-26, -8, 13, 3, 2);
+      face.drawRoundedRect(13, -8, 13, 3, 2);
+      face.endFill();
+      face.lineStyle(1.5, warm);
+      face.moveTo(-25, -16); face.lineTo(-14, -15);
+      face.moveTo(14, -15); face.lineTo(25, -16);
+      face.lineStyle(2, warm);
+      face.moveTo(-5, 19); face.lineTo(5, 19);
+      face.lineStyle(0);
+      break;
+    }
+
+    // 愤怒：眉尖向下的八字眉 + 抿紧的嘴
+    case "angry": {
+      face.beginFill(dark);
+      face.drawRoundedRect(-26, -9, 13, 4, 2);
+      face.drawRoundedRect(13, -9, 13, 4, 2);
+      face.endFill();
+      face.lineStyle(1.8, dark);
+      face.moveTo(-25, -15); face.lineTo(-14, -19);
+      face.moveTo(14, -19); face.lineTo(25, -15);
+      face.lineStyle(2, dark);
+      face.moveTo(-6, 18); face.lineTo(6, 18);
+      face.lineStyle(0);
       break;
     }
 

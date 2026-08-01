@@ -8,7 +8,10 @@ export type OmegaEmotion =
   | "shy"
   | "sad"
   | "proud"
-  | "excited"
+  | "expectant"
+  | "confused"
+  | "down"
+  | "angry"
   | "fearful";
 
 /** 待机行为类型 */

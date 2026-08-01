@@ -17,14 +17,17 @@ export interface AgentOption {
 
 /** 情感关键词 → 中文标签映射 */
 const EMOTION_KEYWORDS: Record<string, { label: string; keywords: string[] }> = {
-  happy: { label: "开心", keywords: ["开心", "高兴", "喜欢", "好", "棒", "开心", "笑", "温暖", "亮"] },
-  sad: { label: "难过", keywords: ["难过", "孤独", "寂寞", "累", "暗", "冷", "空", "害怕", "不安"] },
-  shy: { label: "害羞", keywords: ["害羞", "不好意思", "紧张", "低头", "脸红", "耳朵"] },
+  happy: { label: "开心", keywords: ["开心", "高兴", "喜欢", "好", "棒", "笑", "温暖", "亮"] },
+  expectant: { label: "期待", keywords: ["期待", "兴奋", "激动", "好奇", "新", "哇", "看", "想试试"] },
+  shy: { label: "羞涩", keywords: ["害羞", "羞涩", "不好意思", "紧张", "低头", "脸红", "耳朵"] },
   proud: { label: "骄傲", keywords: ["骄傲", "自豪", "完成", "终于", "第一次", "做到了"] },
-  fearful: { label: "害怕", keywords: ["害怕", "怕", "危险", "警惕", "不安", "担心"] },
-  calm_positive: { label: "平静-积极", keywords: [] },
-  calm_negative: { label: "平静-消极", keywords: [] },
-  excited: { label: "兴奋", keywords: ["兴奋", "激动", "期待", "新", "哇", "看"] },
+  confused: { label: "疑惑", keywords: ["疑惑", "奇怪", "为什么", "怎么回事", "不明白", "搞不懂"] },
+  sad: { label: "悲伤", keywords: ["难过", "悲伤", "孤独", "寂寞", "哭", "伤心"] },
+  down: { label: "低落", keywords: ["低落", "消沉", "累", "暗", "冷", "空", "没力气", "提不起劲"] },
+  angry: { label: "愤怒", keywords: ["生气", "愤怒", "气死", "讨厌", "火大", "烦"] },
+  fearful: { label: "恐惧", keywords: ["害怕", "恐惧", "怕", "危险", "警惕", "不安", "担心"] },
+  calm_positive: { label: "平静（愉悦）", keywords: [] },
+  calm_negative: { label: "平静（消沉）", keywords: [] },
 };
 
 /** 主题关键词 */

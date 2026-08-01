@@ -253,11 +253,11 @@ const nodes: Record<string, NarrativeNode> = {
   "activity_craft": {
     id: "activity_craft", speaker: "omega",
     text: "自己做……？用什么呢……等等，我找到了一些旧的电线和荧光粉。也许可以编点什么。（她开始翻找抽屉，动作比平时快了一些。）",
-    emotion: "excited", moodDelta: 3,
+    emotion: "expectant", moodDelta: 3,
     options: [
       { text: "「我来教你怎么编星星。」", nextNodeId: "activity_craft_star" },
       { text: "「你还藏了什么好东西？」", nextNodeId: "activity_explore" },
-      { text: "「你兴奋的样子很好看。」", nextNodeId: "daily_praise" },
+      { text: "「你期待的样子很好看。」", nextNodeId: "daily_praise" },
     ],
   },
   "activity_explore": {

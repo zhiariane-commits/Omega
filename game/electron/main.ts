@@ -25,7 +25,10 @@ type OmegaEmotion =
   | "shy"
   | "sad"
   | "proud"
-  | "excited"
+  | "expectant"
+  | "confused"
+  | "down"
+  | "angry"
   | "fearful";
 
 type FeatureIntent = "alarm" | "focus" | "capsule" | "game" | null;
@@ -414,7 +417,9 @@ function localOmegaResponse(text: string, includeScreenshot: boolean): OmegaAIRe
   const sad = /难过|累|烦|孤独|讨厌|哭|sad|tired/.test(lowered);
   const happy = /开心|喜欢|谢谢|太好了|可爱|棒|happy|love/.test(lowered);
   const featureIntent = inferFeatureIntent(text);
-  const emotion: OmegaEmotion = sad ? "sad" : happy ? "happy" : featureIntent === "capsule" ? "proud" : "calm_positive";
+  const angry = /生气|愤怒|气死|火大|angry|mad/i.test(lowered);
+  const confused = /奇怪|为什么|怎么回事|疑惑|不明白|confused/i.test(lowered);
+  const emotion: OmegaEmotion = sad ? "sad" : angry ? "angry" : confused ? "confused" : happy ? "happy" : featureIntent === "capsule" ? "proud" : "calm_positive";
   const screenNote = includeScreenshot ? "我也看见了一点你屏幕上的光，像隔着舷窗。" : "";
   const reply =
     featureIntent === "capsule"
@@ -502,7 +507,7 @@ function parseJsonResponse(raw: string): OmegaAIResponse | null {
 
 function normalizeAIResponse(response: Partial<OmegaAIResponse> | null, fallbackText: string): OmegaAIResponse | null {
   if (!response?.reply) return null;
-  const allowedEmotions: OmegaEmotion[] = ["calm_positive", "calm_negative", "happy", "shy", "sad", "proud", "excited", "fearful"];
+  const allowedEmotions: OmegaEmotion[] = ["calm_positive", "calm_negative", "happy", "shy", "sad", "proud", "expectant", "confused", "down", "angry", "fearful"];
   const allowedIntent: FeatureIntent[] = ["alarm", "focus", "capsule", "game", null];
   const emotion = allowedEmotions.includes(response.emotion as OmegaEmotion)
     ? (response.emotion as OmegaEmotion)
@@ -605,7 +610,7 @@ async function cloudOmegaResponse(text: string, screenshot?: string): Promise<Om
 请严格输出合法 JSON，不包含任何 Markdown 标记或额外说明。格式如下：
 {
   "reply": "Ω的回复内容（第一人称，不超过600字）",
-  "emotion": "当前情绪：calm_positive, calm_negative, happy, shy, sad, proud, excited, fearful",
+  "emotion": "当前情绪：happy(开心), expectant(期待), shy(羞涩), proud(骄傲), calm_positive(平静-愉悦), confused(疑惑), calm_negative(平静-消沉), sad(悲伤), down(低落), angry(愤怒), fearful(恐惧)",
   "moodDelta": "心境值变化，-5到5的整数",
   "affinityDelta": "好感度变化，-5到5的整数",
   "memorySummary": "如需记住玩家说的话，写一句简短摘要（≤200字，如：玩家对XX感兴趣/玩家提到XX），否则不填",

@@ -467,7 +467,7 @@ function loadImageAsTexture(_renderer: any, url: string): Promise<Texture> {
 
 function drawFaceGraphicsRoom2(face: Graphics, emotion: OmegaEmotion) {
   face.clear();
-  const eyeColor = emotion === "sad" || emotion === "calm_negative" ? 0x9a835a : 0x5d4037;
+  const eyeColor = emotion === "sad" || emotion === "down" || emotion === "angry" || emotion === "fearful" || emotion === "calm_negative" ? 0x9a835a : 0x5d4037;
   face.beginFill(eyeColor);
   face.drawRoundedRect(-18, -8, 10, 4, 2);
   face.drawRoundedRect(8, -8, 10, 4, 2);
