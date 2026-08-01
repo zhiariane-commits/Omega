@@ -78,7 +78,7 @@ omega/                                  # Git 仓库根（项目根）
 
 关键映射：
 
-- `src/components/FloatingWindow.tsx` — 悬浮窗（气泡菜单、聊天、记录、闹钟、专注模式）。
+- `src/components/FloatingWindow.tsx` — 悬浮窗（气泡菜单、聊天输入与 Ω 回复气泡、提词器选项、本次记录、闹钟、专注模式）。
 - `src/components/CapsuleWindow.tsx` / `CapsuleScene.tsx` — 太空舱窗口与 PixiJS 2D 场景（WASD 移动、书桌、床、书架、装修、合成机）。
 - `src/components/M0Prologue.tsx` — 序幕：黑场白字、昵称输入（启动后不可更改）。
 - `src/components/Live2DModel.tsx` — Live2D 模型加载与情绪表情封装。
@@ -115,6 +115,7 @@ omega/                                  # Git 仓库根（项目根）
 - 默认状态：`electron/main.ts`（defaultState）、`src/browserBridge.ts`（defaultState）、`src/App.tsx`（fallbackState）三处需一致。
 - IPC：新增能力时在 `electron/main.ts` 注册 `ipcMain.handle` → `electron/preload.ts` 暴露 → `src/types.ts` 补 `window.omega` 声明 → `src/browserBridge.ts` 提供浏览器版实现。
 - 资源：图片/Live2D 素材统一放 `game/public/`，以相对路径引用，勿引用 gitignored 目录（`设计文档/`、`新建文件夹 美工/`）。
+- 对话展示约定（现状，以代码为准）：聊天面板仅展示 Ω 当前回复气泡（打字机效果）与提词器回复选项；完整会话历史在“记录”面板查看（`sessionLog` 以单次启动为周期刷新，不跨启动持久化）；`recentLines = sessionLog.slice(-5)` 仅作为提词器选项的显隐条件。调整对话展示逻辑时须同步更新 `game/README.md`“已实现范围”。
 
 ## 六、测试与验收
 

@@ -69,3 +69,4 @@
 - 默认状态：`electron/main.ts`、`src/browserBridge.ts`、`src/App.tsx`（fallbackState）三处一致。
 - 新增 IPC：`main.ts` 注册 → `preload.ts` 暴露 → `types.ts` 声明 → `browserBridge.ts` 浏览器版实现。
 - 资源统一放 `game/public/`，勿引用 gitignored 目录。
+- 对话展示约定（现状，以代码为准）：聊天面板仅展示 Ω 当前回复气泡（打字机效果）与提词器回复选项；完整会话历史在“记录”面板查看（`sessionLog` 以单次启动为周期刷新，不跨启动持久化）；`recentLines = sessionLog.slice(-5)` 仅作为提词器选项的显隐条件。调整对话展示逻辑时须同步更新 `game/README.md`“已实现范围”。
