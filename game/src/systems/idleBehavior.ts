@@ -7,12 +7,20 @@
  *     结束后重新按概率决定下一个动作
  *   - chatting / focus / sleep / capsule / prologue：其他状态
  *
+ * 动作池触发优先级（均为悬浮窗待机行为）：
+ *   ① 专注模式池：开启专注模式（currentMode === "focus"）后使用
+ *   ② 建造/清扫池：M2 清扫（第一阶段完成后 ~ 第二阶段完成前）或 M5 建造持续期间使用
+ *   ③ 普通低心境池 / 普通高心境池：不满足以上条件的其他悬浮窗状态，按 mood（<50 / >=50）分类采用
+ *   - 游戏状态：不使用动作池，使用固定动作（未制作）
+ *   - 对话中：不使用动作池，固定使用 follow_mouse
+ *   - 单击时：使用对应情绪的触发动作
+ *
  * 动作模组：moduleReady=false 的动作暂未制作，执行时用「跟随鼠标指针 5min」占位，
  * 方便后续做好动作模组后直接导入调试。
  */
 
 import type { OmegaIdleAction, OmegaState } from "../types";
-import { isM2CleanInProgress } from "./storyMilestones";
+import { isM2CleanPoolActive } from "./storyMilestones";
 
 /** 单个行为的权重配置 */
 type WeightEntry = {
@@ -145,13 +153,13 @@ export function getAffectionLevel(affinity: number): "low" | "medium" | "high" {
 /* ---- 内部：构造概率权重表 ---- */
 
 function buildWeights(state: OmegaState): WeightEntry[] {
-  const { mood, unlocked, currentMode } = state;
+  const { mood, unlocked } = state;
   const hasConstruction = unlocked.construction;
-  // M2 清扫剧情进行中（已同意打扫，等待下次启动完成）
-  const m2Cleaning = isM2CleanInProgress(state);
+  // M2 清扫池生效窗口：第一阶段（提醒打扫）完成后 ~ 第二阶段（清洁完成）完成前
+  const m2Cleaning = isM2CleanPoolActive(state);
 
-  // 专注模式：固定行为循环（功能状态，动作模组暂未制作 → 统一占位跟随鼠标）
-  if (currentMode === "focus") {
+  // ① 专注模式池：开启专注模式后使用（功能状态，动作模组暂未制作 → 统一占位跟随鼠标）
+  if (state.currentMode === "focus") {
     const focusActions: OmegaIdleAction[] = ["stare", "read", "write", "water_plants"];
     const focusDurations: Record<OmegaIdleAction, number> = {
       follow_mouse: 5 * 60_000,
@@ -169,7 +177,12 @@ function buildWeights(state: OmegaState): WeightEntry[] {
     }));
   }
 
-  // 低心境值（< 50）：跟随鼠标 5min(50%) / 发呆 2min(50%)
+  // ② 建造/清扫池：M2 清扫窗口（第一阶段完成后 ~ 第二阶段完成前）或 M5 建造持续期间
+  if (hasConstruction || m2Cleaning) {
+    return buildConstructionPool(state);
+  }
+
+  // ③ 普通低心境值池（mood < 50）：跟随鼠标 5min(50%) / 发呆 2min(50%)
   if (mood < 50) {
     return [
       {
@@ -185,7 +198,7 @@ function buildWeights(state: OmegaState): WeightEntry[] {
     ];
   }
 
-  // 高心境值（>= 50）：跟随鼠标 5min(40%) / 发呆 1min(10%) / 休闲动作共 50%
+  // ④ 普通高心境池（mood >= 50）：跟随鼠标 5min(40%) / 发呆 1min(10%) / 休闲动作共 50%
   const entries: WeightEntry[] = [
     {
       action: "follow_mouse",
@@ -210,33 +223,33 @@ function buildWeights(state: OmegaState): WeightEntry[] {
     });
   }
 
-  // M5 建造 / M2 清扫 剧情进行中（且心境 >= 100）：
-  // 木牌 5min(40%) / 跟随鼠标 5min(20%) / 发呆1min=看书2min=写作2min=浇花1min 共 40%
-  if ((hasConstruction || m2Cleaning) && mood >= 100) {
-    const woodEntries: WeightEntry[] = [
-      {
-        action: "wooden_sign",
-        weight: 40,
-        duration: getEffectiveIdleDuration("wooden_sign", 5 * 60_000),
-      },
-      {
-        action: "follow_mouse",
-        weight: 20,
-        duration: getEffectiveIdleDuration("follow_mouse", 5 * 60_000),
-      },
-    ];
-    const buildPool: OmegaIdleAction[] = ["stare", ...leisure];
-    const buildWeightsArr = splitWeight(40, buildPool.length);
-    for (let i = 0; i < buildPool.length; i += 1) {
-      const action = buildPool[i];
-      woodEntries.push({
-        action,
-        weight: buildWeightsArr[i],
-        duration: getEffectiveIdleDuration(action, IDLE_ACTION_MODULES[action].duration),
-      });
-    }
-    return woodEntries;
-  }
-
   return entries;
+}
+
+/** 建造/清扫池：木牌维护 5min(40%) / 跟随鼠标 5min(20%) / 发呆+休闲动作共 40% */
+function buildConstructionPool(state: OmegaState): WeightEntry[] {
+  const leisure = buildLeisurePool(state);
+  const woodEntries: WeightEntry[] = [
+    {
+      action: "wooden_sign",
+      weight: 40,
+      duration: getEffectiveIdleDuration("wooden_sign", 5 * 60_000),
+    },
+    {
+      action: "follow_mouse",
+      weight: 20,
+      duration: getEffectiveIdleDuration("follow_mouse", 5 * 60_000),
+    },
+  ];
+  const buildPool: OmegaIdleAction[] = ["stare", ...leisure];
+  const buildWeightsArr = splitWeight(40, buildPool.length);
+  for (let i = 0; i < buildPool.length; i += 1) {
+    const action = buildPool[i];
+    woodEntries.push({
+      action,
+      weight: buildWeightsArr[i],
+      duration: getEffectiveIdleDuration(action, IDLE_ACTION_MODULES[action].duration),
+    });
+  }
+  return woodEntries;
 }

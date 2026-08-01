@@ -103,6 +103,15 @@ export function isM2CleanInProgress(state: OmegaState): boolean {
   );
 }
 
+/** M2 清扫池是否生效：M2 第一阶段（提醒打扫）完成后、第二阶段（清洁完成）完成前 */
+export function isM2CleanPoolActive(state: OmegaState): boolean {
+  const completed = new Set(state.completedMilestones ?? []);
+  return (
+    completed.has("m2_clean_asked") &&
+    !completed.has("m2_clean_capsule")
+  );
+}
+
 /* ---------- 里程碑检查 ---------- */
 
 export type MilestoneCheck = {
