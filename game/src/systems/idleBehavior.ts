@@ -68,6 +68,14 @@ export function isActionModuleReady(action: OmegaIdleAction): boolean {
   return IDLE_ACTION_MODULES[action]?.moduleReady ?? false;
 }
 
+/** 当前是否处于「鼠标跟随」展示：普通（非待机）状态一律视为跟随；待机时仅当抽中 follow_mouse（含未制作模组的占位） */
+export function isFollowingMouse(state: OmegaState): boolean {
+  if (state.currentMode === "idle") {
+    return getEffectiveIdleAction(state.currentIdleAction) === "follow_mouse";
+  }
+  return true;
+}
+
 /** 实际执行的动作：模组未制作时用 follow_mouse 占位 */
 export function getEffectiveIdleAction(action: OmegaIdleAction): OmegaIdleAction {
   return isActionModuleReady(action) ? action : PLACEHOLDER_ACTION;

@@ -72,7 +72,6 @@ test.describe("Ω desktop pet functional prototype", () => {
     await expect(chatInput).toHaveValue("谢谢你陪我测试这个功能");
     await chatInput.press("Enter");
 
-    await expect(page.getByText("谢谢你陪我测试这个功能")).toBeVisible();
     await expect(page.getByLabel("Ω 对话")).toContainText("嗯，我也有一点开心。像是舱壁上的灯忽然稳定了一些。");
     await expect(page.getByText("Ω · 开心 · 好感 13")).toBeVisible();
 

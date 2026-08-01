@@ -8,6 +8,7 @@ import {
   IDLE_ACTION_LABELS,
   IDLE_ACTION_MODULES,
   isActionModuleReady,
+  isFollowingMouse,
   isIdleActionExpired,
   isLowMood,
   pickIdleAction,
@@ -391,8 +392,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
         const awayMs = Date.now() - lastHiddenTime;
         const s = stateRef.current;
         const isMouseFollowing =
-          s.currentMode === "normal" ||
-          (s.currentMode === "idle" && getEffectiveIdleAction(s.currentIdleAction) === "follow_mouse");
+          s.currentMode === "normal" || (s.currentMode === "idle" && isFollowingMouse(s));
         if (awayMs > 10000 && isMouseFollowing && Math.random() < 0.4) {
           setClickBubble('\u4F60\u597D\u50CF\u6709\u65B0\u6D88\u606F\u4E86\u3002');
           setTimeout(() => setClickBubble(null), 4000);
@@ -603,19 +603,10 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   // 视线跟随：不进行动作（普通状态）或执行 follow_mouse（含未制作模组的占位）时跟随鼠标
   const effectiveIdleAction =
     state.currentMode === "idle" ? getEffectiveIdleAction(state.currentIdleAction) : "follow_mouse";
-  const gazeEnabled = state.currentMode !== "idle" || effectiveIdleAction === "follow_mouse";
+  const gazeEnabled = isFollowingMouse(state);
   // 木牌维护场景（空白桌子 + 维护木牌）是否显示
   const woodenSceneActive =
     state.currentMode === "idle" && effectiveIdleAction === "wooden_sign";
-
-
-  useEffect(() => {
-    if (state.emotion === "sad" || state.emotion === "down" || state.emotion === "fearful" || state.emotion === "angry") {
-      setAnimation("angry");
-    } else if (animation === "angry") {
-      setAnimation("idle");
-    }
-  }, [state.emotion]);
 
   return (
     <main className="floating-shell" ref={containerRef} onClick={wakeUp}>

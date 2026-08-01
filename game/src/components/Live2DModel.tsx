@@ -22,19 +22,8 @@ const modelPaths: Record<AnimationId, string> = {
   angry: "/live2d/omega/omega.model3.json",
 };
 
-const expressionNames: Record<string, string> = {
-  calm_positive: "calm_positive",
-  calm_negative: "calm_negative",
-  happy: "happy",
-  expectant: "expectant",
-  shy: "shy",
-  proud: "proud",
-  confused: "confused",
-  sad: "sad",
-  down: "down",
-  angry: "angry",
-  fearful: "fearful",
-};
+/** 普通（非单击）状态的固定表情：不受当前情绪影响 */
+const NEUTRAL_EXPRESSION = "calm_positive";
 
 function getMouthOpenValue(emotion: string): number {
   // NOTE: this model's ParamMouthOpenY is inverted (1 = closed, 0 = open)
@@ -45,17 +34,22 @@ function getMouthOpenValue(emotion: string): number {
          1;
 }
 
-function setModelExpression(model: any, emotion: string) {
-  const name = expressionNames[emotion];
-  if (!name) return;
-  try { model.expression(name).catch(() => {}); } catch {}
+/** 当前应生效的嘴部开合值：仅「单击表情态」跟随情绪（开心张嘴等），其余状态固定闭合（开合=1） */
+function getActiveMouthValue(animationId: AnimationId, emotion: string): number {
+  return animationId === "click" ? getMouthOpenValue(emotion) : 1;
+}
+
+function setModelExpression(model: any, emotion: string, animationId: AnimationId) {
+  // 普通状态固定展示中性表情（不受情绪影响）；仅单击时应用当前情绪表情
+  const expressionName = animationId === "click" ? emotion : NEUTRAL_EXPRESSION;
+  try { model.expression(expressionName).catch(() => {}); } catch {}
 
   // Directly set mouth parameter via low-level API
   // (expression system alone may not override .moc3 default values)
   try {
     const core = model.internalModel?.coreModel;
     if (core && typeof core.setParameterValueById === "function") {
-      core.setParameterValueById("ParamMouthOpenY", getMouthOpenValue(emotion));
+      core.setParameterValueById("ParamMouthOpenY", getActiveMouthValue(animationId, emotion));
     }
   } catch {}
 }
@@ -65,6 +59,7 @@ async function createAndAttachModel(
   path: string,
   scale: number,
   emotion: string,
+  animationId: AnimationId,
   motionName?: string,
 ) {
   const model = await PixiL2D.from(path, { autoUpdate: true, autoInteract: true });
@@ -91,7 +86,7 @@ async function createAndAttachModel(
   model.position.set(screenW / 2, screenH / 2);
   app.stage.addChild(model);
 
-  setModelExpression(model, emotion);
+  setModelExpression(model, emotion, animationId);
 
   // 单击模型：加载后立即播放点击动画（点击动画为循环 motion）
   if (motionName) {
@@ -139,7 +134,7 @@ export default function OmegaLive2DModel({
     }
 
     const path = modelPaths[animationId] || modelPaths.idle;
-    createAndAttachModel(app, path, scale, emotion, animationId === "click" ? "click" : undefined)
+    createAndAttachModel(app, path, scale, emotion, animationId, animationId === "click" ? "click" : undefined)
       .then((model) => {
         if (!model) return;
         // 异步加载期间 app 可能已被卸载/替换，此时丢弃新模型，避免泄漏在全局 ticker 上
@@ -197,7 +192,7 @@ export default function OmegaLive2DModel({
       modelRef.current = null;
     }
 
-    createAndAttachModel(app, path, scale, emotion, animationId === "click" ? "click" : undefined)
+    createAndAttachModel(app, path, scale, emotion, animationId, animationId === "click" ? "click" : undefined)
       .then((model) => {
         if (!model) return;
         if (!appRef.current || appRef.current !== app || !appRef.current.renderer) {
@@ -214,8 +209,8 @@ export default function OmegaLive2DModel({
 
   // Update expression when emotion changes or model becomes ready
   useEffect(() => {
-    if (modelRef.current) setModelExpression(modelRef.current, emotion);
-  }, [emotion, modelReady]);
+    if (modelRef.current) setModelExpression(modelRef.current, emotion, animationId);
+  }, [emotion, modelReady, animationId]);
 
   // Force mouth parameter every frame via Pixi ticker.
   // Cubium resets parameters during internalModel.update() each frame,
@@ -230,7 +225,7 @@ export default function OmegaLive2DModel({
         const core = m.internalModel?.coreModel;
         if (!core) return;
         if (typeof core.setParameterValueById !== "function") return;
-        core.setParameterValueById("ParamMouthOpenY", getMouthOpenValue(emotion));
+        core.setParameterValueById("ParamMouthOpenY", getActiveMouthValue(animationId, emotion));
       } catch {}
     };
     ticker.add(forceMouth);
@@ -238,7 +233,7 @@ export default function OmegaLive2DModel({
       // app.destroy(true) 会销毁 ticker（_head=Null），此时 remove 会抛错
       try { ticker.remove(forceMouth); } catch {}
     };
-  }, [emotion, modelReady]);
+  }, [emotion, modelReady, animationId]);
 
   // Eye tracking (gazeEnabled=false 时视线回到正中，不跟随鼠标)
   useEffect(() => {
