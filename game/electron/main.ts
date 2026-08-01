@@ -309,7 +309,7 @@ function createFloatingWindow() {
   floatingWindow.setAlwaysOnTop(true, "floating");
   floatingWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   floatingWindow.loadURL(rendererPath("floating"));
-  floatingWindow.webContents.openDevTools({ mode: "detach" });
+  if (isDev) floatingWindow.webContents.openDevTools({ mode: "detach" });
   floatingWindow.on("moved", async () => {
     if (!floatingWindow) return;
     const [x, y] = floatingWindow.getPosition();

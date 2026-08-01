@@ -14,7 +14,6 @@ type Props = {
   mood: number;
   equippedDecorations?: Record<string, string>;
   capsuleBackgroundDirty?: boolean;
-  deskHighlighted?: boolean;
 };
 
 type Position = { x: number; y: number };
@@ -31,7 +30,6 @@ export function CapsuleScene({
   mood,
   equippedDecorations = {},
   capsuleBackgroundDirty = true,
-  deskHighlighted = false,
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<Application | null>(null);

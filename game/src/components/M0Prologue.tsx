@@ -1,4 +1,4 @@
-﻿/**
+/**
  * M0 开篇序章 — 完整演出流程
  *
  * Phase 0: Black — 2秒黑屏
@@ -105,10 +105,8 @@ export default function M0Prologue({ state, updateState }: Props) {
   const [dialogueIdx, setDialogueIdx] = useState(0);
   const [nickname, setNickname] = useState(state.nickname || "");
   const [omegaExpression, setOmegaExpression] = useState<OmegaEmotion>("calm_negative");
-  const [deskHighlighted, setDeskHighlighted] = useState(false);
   const [showCloseHint, setShowCloseHint] = useState(false);
   const [typewriterActive, setTypewriterActive] = useState(false);
-  const [typewriterKey, setTypewriterKey] = useState(0);
 
   const lastOmegaBubbleRef = useRef<{ text: string; emotion: OmegaEmotion } | null>(null);
   const capsuleShellRef = useRef<HTMLDivElement>(null);
@@ -141,7 +139,6 @@ export default function M0Prologue({ state, updateState }: Props) {
   const handleOmegaTextContinue = useCallback(() => {
     setDialogueIdx((i) => i + 1);
     setTypewriterActive(false);
-    setTypewriterKey((k) => k + 1);
   }, []);
 
   const handlePlayerChoice = useCallback((_index: number) => {
@@ -154,7 +151,7 @@ export default function M0Prologue({ state, updateState }: Props) {
 
     if (currentStep.role === "system") {
       if (currentStep.text === "nickname") { setPhase("nickname"); setDialogueIdx(0); }
-      else if (currentStep.text === "tutorial") { setPhase("tutorial"); setDeskHighlighted(true); setShowCloseHint(true); }
+      else if (currentStep.text === "tutorial") { setPhase("tutorial"); setShowCloseHint(true); }
       return;
     }
 
@@ -165,7 +162,6 @@ export default function M0Prologue({ state, updateState }: Props) {
         lastOmegaBubbleRef.current = { text: (currentStep as any).text, emotion: e };
       }
       setTypewriterActive(true);
-      setTypewriterKey((k) => k + 1);
     } else if (currentStep.role === "player_choice") {
       setTypewriterActive(false);
     }
@@ -179,7 +175,6 @@ export default function M0Prologue({ state, updateState }: Props) {
     setPhase("capsule_dialogue");
     setDialogueIdx(0);
     setTypewriterActive(true);
-    setTypewriterKey((k) => k + 1);
   }, [nickname, updateState]);
 
   // ---------- Finish prologue ----------
@@ -268,7 +263,7 @@ export default function M0Prologue({ state, updateState }: Props) {
         <CapsuleScene
           prologueDone={false} emotion={omegaExpression} mood={state.mood}
           equippedDecorations={state.equippedDecorations ?? {}}
-          capsuleBackgroundDirty={state.capsuleBackgroundDirty} deskHighlighted={false}
+          capsuleBackgroundDirty={state.capsuleBackgroundDirty}
         />
         <div className="m0-capsule-overlay">
           {showNicknameReply && (
@@ -316,7 +311,7 @@ export default function M0Prologue({ state, updateState }: Props) {
           prologueDone={false} emotion="calm_positive" mood={state.mood}
           equippedDecorations={state.equippedDecorations ?? {}}
           capsuleBackgroundDirty={state.capsuleBackgroundDirty}
-          deskHighlighted={true} onDeskInteract={finishPrologue}
+          onDeskInteract={finishPrologue}
         />
         {showCloseHint && (
           <div className="m0-tutorial__hint">

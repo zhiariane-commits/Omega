@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 import { Live2DModel as PixiL2D } from "pixi-live2d-display/cubism4";
 PixiL2D.registerTicker(PIXI.Ticker);
@@ -91,9 +91,6 @@ async function createAndAttachModel(
   app.stage.addChild(model);
 
   setModelExpression(model, emotion);
-
-  // TEMP-DEBUG: expose model for inspection
-  (window as any).__omegaModel = model;
 
   return model;
 }
