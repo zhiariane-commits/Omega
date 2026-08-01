@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChatLine, OmegaAIResponse, OmegaEmotion, OmegaIdleAction, OmegaState } from "../types";
 import Live2DModel, { type AnimationId } from "../components/Live2DModel";
 import {
@@ -857,16 +857,6 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       {panel === "chat" && (
         <section className="chat-controls">
           {recentLines.length > 0 && (
-            <div className="chat-recent">
-              {recentLines.map((line, idx) => (
-                <p key={`${line.createdAt}-${idx}`} className={`chat-recent__line chat-recent__line--${line.speaker}`}>
-                  <strong>{line.speaker === "omega" ? "Ω" : state.nickname || "你"}：</strong>
-                  {line.text}
-                </p>
-              ))}
-            </div>
-          )}
-          {agentOptions.length > 0 && !isTyping && !busy && (
             <div className="narrative-options">
               {agentOptions.map((opt, idx) => (
                 <button

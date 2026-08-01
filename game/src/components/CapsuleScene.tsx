@@ -104,7 +104,7 @@ export function CapsuleScene({
       try {
         const capsuleBgTexture = await loadImageAsTexture(
           app.renderer as unknown as import("pixi.js").Renderer,
-          "/capusle/capsule-bg.png"
+          capsuleBackgroundDirty ? "/capusle/capsule-bg.png" : "/capusle/capsule-bg-clean.png"
         );
         if (abortIfStale()) return;
         const bgSprite = new Sprite(capsuleBgTexture);
@@ -126,7 +126,7 @@ export function CapsuleScene({
       try {
         const tableTexture = await loadImageAsTexture(
           app.renderer as unknown as import("pixi.js").Renderer,
-          "/capusle/desk.png"
+          capsuleBackgroundDirty ? "/capusle/desk.png" : "/capusle/desk-clean.png"
         );
         if (abortIfStale()) return;
         const tableSprite = new Sprite(tableTexture);

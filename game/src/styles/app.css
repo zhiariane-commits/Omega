@@ -554,29 +554,7 @@
   animation: fadeInUp 0.3s ease-out;
 }
 
-.chat-recent {
-  max-height: 120px;
-  overflow-y: auto;
-  display: grid;
-  gap: 4px;
-  padding: 8px 12px;
-  border-radius: 14px;
-  background: rgba(255, 250, 240, 0.6);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-}
-.chat-recent__line {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.45;
-  color: #806851;
-}
-.chat-recent__line strong {
-  color: var(--ac-brown);
-}
-.chat-recent__line--player {
-  text-align: right;
-}
+
 .chat-controls .narrative-options {
   border-top: none;
   margin-top: 0;
