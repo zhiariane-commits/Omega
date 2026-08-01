@@ -1026,6 +1026,57 @@
   opacity: 0;
 }
 
+/* ---------- 单击情绪贴图（悬浮窗，位于模型左侧中央；参数后续可按需调整） ---------- */
+.emotion-sticker {
+  position: absolute;
+  /* 模型（.omega-avatar，宽 420px）居中，左边缘 = 50% - 210px；贴图右侧伸入模型左侧 150px → right: calc(50% + 60px) */
+  right: calc(50% + 60px);
+  /* 垂直方向整体上移 40px（原为 50% 居中） */
+  top: calc(50% - 40px);
+  /* 30% 原大小：宽贴图 189×144 → 56.7×43.2 */
+  width: 56.7px;
+  height: auto;
+  transform: translateY(-50%);
+  z-index: 5;
+  pointer-events: none;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 12px rgba(93, 64, 55, 0.25));
+  animation: stickerPop 0.3s ease-out;
+}
+@keyframes stickerPop {
+  from { opacity: 0; transform: translateY(-50%) scale(0.7); }
+  to { opacity: 1; transform: translateY(-50%) scale(1); }
+}
+/* 窄贴图（平静/愤怒，原图 69×91 → 30% 为 20.7×27.3） */
+.emotion-sticker--narrow {
+  width: 20.7px;
+}
+/* 各情绪贴图微调偏移（在基础位置 right: calc(50% + 60px); top: calc(50% - 40px) 之上叠加） */
+.emotion-sticker--happy {
+  right: calc(50% + 30px); /* 右移 20 + 10px */
+  top: calc(50% - 70px);   /* 上移 20 + 10px */
+  width: 51.03px;          /* 再缩小 10%（56.7 × 0.9） */
+}
+.emotion-sticker--expectant,
+.emotion-sticker--proud {
+  right: calc(50% + 40px); /* 右移 20px */
+  top: calc(50% - 60px);   /* 上移 20px */
+}
+.emotion-sticker--sad {
+  right: calc(50% + 30px); /* 右移 20 + 10px */
+  top: calc(50% - 10px);   /* 下移 20 + 10px */
+  width: 51.03px;          /* 缩小 10%（56.7 × 0.9） */
+}
+.emotion-sticker--down {
+  right: calc(50% + 20px); /* 右移 20 + 20px */
+  top: calc(50% + 10px);   /* 下移 30 + 20px */
+}
+.emotion-sticker--fearful {
+  right: calc(50% + 10px); /* 右移 40 + 10px */
+  top: calc(50% - 50px);   /* 上移 10px */
+  width: 51.03px;          /* 缩小 10%（56.7 × 0.9） */
+}
+
 /* ---------- 开发者面板待机动作预览 ---------- */
 .dev-panel__actions label {
   display: block;

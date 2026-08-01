@@ -45,6 +45,29 @@ const emotionLabel: Record<OmegaState["emotion"], string> = {
   fearful: "恐惧",
 };
 
+/** 单击时展示的情绪贴图（资源位于 game/public/emotion-stickers/） */
+const emotionStickerMap: Partial<Record<OmegaEmotion, string>> = {
+  calm_positive: "emotion-stickers/calm.png",
+  calm_negative: "emotion-stickers/calm.png",
+  happy: "emotion-stickers/happy.png",
+  // 暂无“期待”贴图，暂以“骄傲”代替
+  expectant: "emotion-stickers/proud.png",
+  shy: "emotion-stickers/shy.png",
+  proud: "emotion-stickers/proud.png",
+  confused: "emotion-stickers/confused.png",
+  sad: "emotion-stickers/sad.png",
+  down: "emotion-stickers/down.png",
+  angry: "emotion-stickers/angry.png",
+  fearful: "emotion-stickers/fearful.png",
+};
+
+/** 原图为窄尺寸（69×91）的情绪贴图，其余为 189×144 */
+const narrowStickerEmotions = new Set<OmegaEmotion>([
+  "calm_positive",
+  "calm_negative",
+  "angry",
+]);
+
 /**
  * 根据情绪 + 亲密度生成点击反馈文案
  */
@@ -123,6 +146,9 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   busyRef.current = busy;
   const [animation, setAnimation] = useState<AnimationId>("idle");
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** 单击时是否显示情绪贴图（与点击动画同步显隐） */
+  const [emotionStickerVisible, setEmotionStickerVisible] = useState(false);
+  const emotionStickerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 会话内是否处于待机状态（从持久化状态恢复时同步）
   const [idleHint, setIdleHint] = useState(state.currentMode === "idle");
   /** 用户交互计数器：任意交互都会 +1，用于重置 3 分钟待机倒计时 */
@@ -511,6 +537,10 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
     // 2秒后自动恢复
     if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
     clickTimerRef.current = setTimeout(() => setAnimation("idle"), 2000);
+    // 同步显示情绪贴图，2秒后隐藏
+    setEmotionStickerVisible(true);
+    if (emotionStickerTimerRef.current) clearTimeout(emotionStickerTimerRef.current);
+    emotionStickerTimerRef.current = setTimeout(() => setEmotionStickerVisible(false), 2000);
   }
 
   // ---------- 头像拖拽窗口 ----------
@@ -705,6 +735,14 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
           gazeEnabled={gazeEnabled}
         />
       </button>
+      {emotionStickerVisible && (
+        <img
+          className={`emotion-sticker${narrowStickerEmotions.has(state.emotion) ? " emotion-sticker--narrow" : ""} emotion-sticker--${state.emotion}`}
+          src={emotionStickerMap[state.emotion] ?? ""}
+          alt="情绪贴图"
+          draggable={false}
+        />
+      )}
       </div>
 
             {/* 开发者齿轮按钮 */}
