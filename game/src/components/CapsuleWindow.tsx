@@ -6,6 +6,7 @@ import { getM2CleanSteps, isM2CleanStoryPending, M2_CLEAN_HINT } from "../system
 import CapsuleStoryDialogue from "./CapsuleStoryDialogue";
 import DecorationPanel from "./DecorationPanel";
 import BookshelfPanel from "./BookshelfPanel";
+import CraftingPanel from "./CraftingPanel";
 import M0Prologue from "./M0Prologue";
 // Lazy Room2Scene (pixi.js v7 API mismatch)
 
@@ -21,6 +22,7 @@ export function CapsuleWindow({ state, updateState }: Props) {
   const [decorating, setDecorating] = useState(false);
   const [inRoom2, setInRoom2] = useState(false);
   const [bookshelfShow, setBookshelfShow] = useState(false);
+  const [craftingShow, setCraftingShow] = useState(false);
   const canDecorate = state.prologueDone && !sleeping;
   // M2 清扫剧情：已提醒（或提醒气泡仍挂起）且尚未同意 → 进入剧情模式
   const m2StoryPending = isM2CleanStoryPending(state);
@@ -151,6 +153,15 @@ export function CapsuleWindow({ state, updateState }: Props) {
             updateState={updateState}
           />
         </Suspense>
+      ) : craftingShow ? (
+        <CraftingPanel
+          state={state}
+          updateState={updateState}
+          onClose={() => setCraftingShow(false)}
+          setClickBubble={(msg) => {
+            console.log("Crafting:", msg);
+          }}
+        />
       ) : bookshelfShow ? (
         <BookshelfPanel
           state={state}
@@ -179,6 +190,9 @@ export function CapsuleWindow({ state, updateState }: Props) {
           room2Unlocked={state.room2Unlocked ?? false}
           onShelfInteract={() => setBookshelfShow(true)}
           onRoom2Door={() => { setInRoom2(true); }}
+          onOpenCrafting={() => setCraftingShow(true)}
+          onOpenBookshelf={() => setBookshelfShow(true)}
+          onGoFloating={() => { void window.omega.window.closeCapsule(); }}
         />
       )}
     </main>

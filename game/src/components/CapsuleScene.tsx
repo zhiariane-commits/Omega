@@ -11,12 +11,28 @@ type Props = {
   room2Unlocked?: boolean;
   onShelfInteract?: () => void;
   onRoom2Door?: () => void;
+  /** 打开合成机面板（复用悬浮窗「事项-合成机」界面） */
+  onOpenCrafting?: () => void;
+  /** 打开书架面板（复用悬浮窗「事项-书架」界面，M7 后解锁完整内容） */
+  onOpenBookshelf?: () => void;
+  /** 返回悬浮窗（关闭太空舱窗口） */
+  onGoFloating?: () => void;
   mood: number;
   equippedDecorations?: Record<string, string>;
   capsuleBackgroundDirty?: boolean;
 };
 
 type Position = { x: number; y: number };
+
+/** 太空舱三个交互气泡的坐标（相对屏幕宽高，0~1 表示比例）。
+ * 目前按要求先全部居中占位；后续按用户给出的精确坐标调整这里即可。
+ * 最终规划：书桌居中、合成机在右侧（x≈0.8）、书橱在左侧（x≈0.2）。
+ * 现 y 值仅做少量错开，避免三个气泡完全重叠而无法点选；如需完全居中请都设为 0.5。 */
+const CAPSULE_BUBBLE_POS: Record<"desk" | "craft" | "shelf", Position> = {
+  desk: { x: 0.5, y: 0.5 },
+  craft: { x: 0.5, y: 0.58 },
+  shelf: { x: 0.5, y: 0.42 },
+};
 
 export function CapsuleScene({
   prologueDone,
@@ -27,6 +43,9 @@ export function CapsuleScene({
   room2Unlocked,
   onShelfInteract,
   onRoom2Door,
+  onOpenCrafting,
+  onOpenBookshelf,
+  onGoFloating,
   mood,
   equippedDecorations = {},
   capsuleBackgroundDirty = true,
@@ -43,6 +62,9 @@ export function CapsuleScene({
   const [nearBed, setNearBed] = useState(false);
   const [nearShelf, setNearShelf] = useState(false);
   const [nearDoor, setNearDoor] = useState(false);
+  const [activeBubble, setActiveBubble] = useState<"desk" | "craft" | "shelf" | null>(null);
+  const [sitting, setSitting] = useState(false);
+  const sittingRef = useRef(false);
   const arrowRef = useRef<Text | null>(null);
   const bedArrowRef = useRef<Text | null>(null);
   const shelfArrowRef = useRef<Text | null>(null);
@@ -230,30 +252,38 @@ export function CapsuleScene({
       // --- Tick loop ---
       app.ticker.add((dt: number) => {
         if (!appAlive()) return;
-        const speed = 3.1 * dt;
         const pos = positionRef.current;
-        if (keysRef.current.has("w")) pos.y -= speed;
-        if (keysRef.current.has("s")) pos.y += speed;
-        if (keysRef.current.has("a")) pos.x -= speed;
-        if (keysRef.current.has("d")) pos.x += speed;
-        pos.x = Math.max(150, Math.min(app.screen.width - 150, pos.x));
-        pos.y = Math.max(380, Math.min(490, pos.y));
+        if (sittingRef.current) {
+          // 坐下占位：坐下时不可移动，按方向键（W/A/S/D）自动起身
+          if (keysRef.current.has("w") || keysRef.current.has("a") || keysRef.current.has("s") || keysRef.current.has("d")) {
+            sittingRef.current = false;
+            setSitting(false);
+          }
+        } else {
+          const speed = 3.1 * dt;
+          if (keysRef.current.has("w")) pos.y -= speed;
+          if (keysRef.current.has("s")) pos.y += speed;
+          if (keysRef.current.has("a")) pos.x -= speed;
+          if (keysRef.current.has("d")) pos.x += speed;
+          pos.x = Math.max(150, Math.min(app.screen.width - 150, pos.x));
+          pos.y = Math.max(380, Math.min(490, pos.y));
 
-        // 桌子碰撞区（梯形：Y=410 上边 X=321~759，Y=450 下边 X=227~853，X 随 Y 线性变化）：Ω 不能直接穿过桌面区域
-        if (pos.y > 410 && pos.y < 450 && tableHalfWidth > 0) {
-          const tableT = (pos.y - 410) / 40;
-          const tableLeft = 321 + (227 - 321) * tableT;
-          const tableRight = 759 + (853 - 759) * tableT;
-          if (pos.x > tableLeft && pos.x < tableRight) {
-            const dLeft = pos.x - tableLeft;
-            const dRight = tableRight - pos.x;
-            const dTop = pos.y - 410;
-            const dBottom = 450 - pos.y;
-            const minD = Math.min(dLeft, dRight, dTop, dBottom);
-            if (minD === dLeft) pos.x = tableLeft;
-            else if (minD === dRight) pos.x = tableRight;
-            else if (minD === dTop) pos.y = 410;
-            else pos.y = 450;
+          // 桌子碰撞区（梯形：Y=410 上边 X=321~759，Y=450 下边 X=227~853，X 随 Y 线性变化）：Ω 不能直接穿过桌面区域
+          if (pos.y > 410 && pos.y < 450 && tableHalfWidth > 0) {
+            const tableT = (pos.y - 410) / 40;
+            const tableLeft = 321 + (227 - 321) * tableT;
+            const tableRight = 759 + (853 - 759) * tableT;
+            if (pos.x > tableLeft && pos.x < tableRight) {
+              const dLeft = pos.x - tableLeft;
+              const dRight = tableRight - pos.x;
+              const dTop = pos.y - 410;
+              const dBottom = 450 - pos.y;
+              const minD = Math.min(dLeft, dRight, dTop, dBottom);
+              if (minD === dLeft) pos.x = tableLeft;
+              else if (minD === dRight) pos.x = tableRight;
+              else if (minD === dTop) pos.y = 410;
+              else pos.y = 450;
+            }
           }
         }
 
@@ -333,9 +363,93 @@ export function CapsuleScene({
     }
   }, [emotion]);
 
+  // 书桌气泡：坐在书桌前（动作暂未制作，使用占位）→ 按方向键自动起身
+  const startSitting = () => {
+    const app = appRef.current;
+    if (app) {
+      positionRef.current = {
+        x: CAPSULE_BUBBLE_POS.desk.x * app.screen.width,
+        y: CAPSULE_BUBBLE_POS.desk.y * app.screen.height,
+      };
+    }
+    sittingRef.current = true;
+    setSitting(true);
+    setActiveBubble(null);
+  };
+
   return (
     <section className="scene-wrap">
       <div ref={hostRef} className="pixi-host" />
+      {prologueDone && !sitting && onOpenCrafting && onOpenBookshelf && onGoFloating && (
+        <div className="capsule-bubbles">
+          <div
+            className="capsule-bubble-anchor"
+            style={{ left: `${CAPSULE_BUBBLE_POS.desk.x * 100}%`, top: `${CAPSULE_BUBBLE_POS.desk.y * 100}%` }}
+          >
+            <button
+              type="button"
+              className="capsule-bubble"
+              onClick={() => setActiveBubble(activeBubble === "desk" ? null : "desk")}
+            >
+              书桌
+            </button>
+            {activeBubble === "desk" && (
+              <div className="capsule-bubble-menu">
+                <button type="button" onClick={startSitting}>
+                  坐在书桌前
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveBubble(null);
+                    onGoFloating();
+                  }}
+                >
+                  前往悬浮窗
+                </button>
+              </div>
+            )}
+          </div>
+          <div
+            className="capsule-bubble-anchor"
+            style={{ left: `${CAPSULE_BUBBLE_POS.craft.x * 100}%`, top: `${CAPSULE_BUBBLE_POS.craft.y * 100}%` }}
+          >
+            <button
+              type="button"
+              className="capsule-bubble"
+              onClick={() => {
+                setActiveBubble(null);
+                onOpenCrafting();
+              }}
+            >
+              合成机
+            </button>
+          </div>
+          <div
+            className="capsule-bubble-anchor"
+            style={{ left: `${CAPSULE_BUBBLE_POS.shelf.x * 100}%`, top: `${CAPSULE_BUBBLE_POS.shelf.y * 100}%` }}
+          >
+            <button
+              type="button"
+              className="capsule-bubble"
+              onClick={() => {
+                setActiveBubble(null);
+                onOpenBookshelf();
+              }}
+            >
+              书架
+            </button>
+          </div>
+        </div>
+      )}
+
+      {sitting && (
+        <div className="capsule-sit-overlay">
+          <p className="capsule-sit-overlay__title">Ω 正在书桌前坐下……</p>
+          <p className="capsule-sit-overlay__hint">（坐下动作暂未制作，此为占位）按方向键 W/A/S/D 起身</p>
+        </div>
+      )}
+
       {nearDesk && onDeskInteract && (
         <button className="desk-action" type="button" onClick={onDeskInteract}>
           Click Desk

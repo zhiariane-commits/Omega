@@ -115,4 +115,22 @@ test.describe("Ω desktop pet functional prototype", () => {
     await expect(page).toHaveURL(/view=floating/);
     await expect(page.getByRole("button", { name: "Ω" })).toBeVisible();
   });
+
+  test("capsule desk bubble sit placeholder is dismissed by arrow keys and bubbles return", async ({ page }) => {
+    await seedReadyState(page);
+    await page.goto("/?view=capsule");
+
+    // 打开书桌气泡菜单并选择“坐在书桌前”（动作占位）
+    await page.getByRole("button", { name: "书桌", exact: true }).click();
+    await page.getByRole("button", { name: "坐在书桌前" }).click();
+    await expect(page.getByText("Ω 正在书桌前坐下……")).toBeVisible();
+
+    // 按方向键自动起身：提示语消失、交互气泡恢复
+    await page.keyboard.down("w");
+    await expect(page.getByText("Ω 正在书桌前坐下……")).toBeHidden();
+    await page.keyboard.up("w");
+    await expect(page.getByRole("button", { name: "书桌", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "合成机", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "书架", exact: true })).toBeVisible();
+  });
 });
