@@ -90,6 +90,19 @@ async function createAndAttachModel(
 
   // 单击模型：加载后立即播放点击动画（点击动画为循环 motion）
   if (motionName) {
+    // 单击动画期间暂时关闭键鼠眼球跟踪：每帧清零 focusController，内部 updateFocus 不再叠加跟踪值
+    try {
+      const im = model.internalModel as any;
+      im?.on?.("afterMotionUpdate", () => {
+        const fc = im.focusController;
+        if (fc) {
+          fc.targetX = 0;
+          fc.targetY = 0;
+          fc.x = 0;
+          fc.y = 0;
+        }
+      });
+    } catch {}
     try { model.motion(motionName); } catch {}
   }
 
@@ -242,6 +255,8 @@ export default function OmegaLive2DModel({
     try {
       const core = m.internalModel?.coreModel;
       if (core && typeof core.setParameterValueById === "function") {
+        // 单击动画期间眼球由 motion 曲线控制，不叠加键鼠跟踪
+        if (animationId === "click") return;
         if (!gazeEnabled) {
           core.setParameterValueById("ParamEyeBallX", 0);
           core.setParameterValueById("ParamEyeBallY", 0);
@@ -260,7 +275,7 @@ export default function OmegaLive2DModel({
         core.setParameterValueById("ParamAngleY", angleY);
       }
     } catch {}
-  }, [mousePos, gazeEnabled]);
+  }, [mousePos, gazeEnabled, animationId]);
 
   return (
     <div ref={divRef} style={{ width: "100%", height: "100%", overflow: "hidden" }} />
