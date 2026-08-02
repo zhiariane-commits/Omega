@@ -29,8 +29,7 @@ function getMouthOpenValue(emotion: string): number {
   // NOTE: this model's ParamMouthOpenY is inverted (1 = closed, 0 = open)
   return emotion === "expectant" || emotion === "fearful" ? 0.6 :
          emotion === "happy" ? 0.1 :
-         emotion === "confused" || emotion === "angry" ? 0.95 :
-         emotion === "sad" ? 0.92 :
+         emotion === "confused" ? 0.95 :
          1;
 }
 
