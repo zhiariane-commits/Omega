@@ -1214,3 +1214,21 @@
   font-size: 13px;
   opacity: 0.85;
 }
+
+/* ---------- ????????????/???/??? ---------- */
+.capsule-panel-center {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+.capsule-panel-center .floating-panel {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  width: min(560px, calc(100vw - 48px));
+  max-height: calc(100% - 48px);
+  overflow-y: auto;
+}

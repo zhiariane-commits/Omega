@@ -154,6 +154,7 @@ export function CapsuleWindow({ state, updateState }: Props) {
           />
         </Suspense>
       ) : craftingShow ? (
+<div className="capsule-panel-center">
         <CraftingPanel
           state={state}
           updateState={updateState}
@@ -162,13 +163,17 @@ export function CapsuleWindow({ state, updateState }: Props) {
             console.log("Crafting:", msg);
           }}
         />
+        </div>
       ) : bookshelfShow ? (
+<div className="capsule-panel-center">
         <BookshelfPanel
           state={state}
           updateState={updateState}
           onClose={() => setBookshelfShow(false)}
         />
+        </div>
       ) : decorating ? (
+<div className="capsule-panel-center">
         <DecorationPanel
           state={state}
           updateState={updateState}
@@ -177,6 +182,7 @@ export function CapsuleWindow({ state, updateState }: Props) {
             console.log("Decoration:", msg);
           }}
         />
+        </div>
       ) : (
         <CapsuleScene
           prologueDone={state.prologueDone}
