@@ -154,34 +154,34 @@ export function CapsuleWindow({ state, updateState }: Props) {
           />
         </Suspense>
       ) : craftingShow ? (
-<div className="capsule-panel-center">
-        <CraftingPanel
-          state={state}
-          updateState={updateState}
-          onClose={() => setCraftingShow(false)}
-          setClickBubble={(msg) => {
-            console.log("Crafting:", msg);
-          }}
-        />
+        <div className="capsule-panel-center">
+          <CraftingPanel
+            state={state}
+            updateState={updateState}
+            onClose={() => setCraftingShow(false)}
+            setClickBubble={(msg) => {
+              console.log("Crafting:", msg);
+            }}
+          />
         </div>
       ) : bookshelfShow ? (
-<div className="capsule-panel-center">
-        <BookshelfPanel
-          state={state}
-          updateState={updateState}
-          onClose={() => setBookshelfShow(false)}
-        />
+        <div className="capsule-panel-center">
+          <BookshelfPanel
+            state={state}
+            updateState={updateState}
+            onClose={() => setBookshelfShow(false)}
+          />
         </div>
       ) : decorating ? (
-<div className="capsule-panel-center">
-        <DecorationPanel
-          state={state}
-          updateState={updateState}
-          onExit={() => setDecorating(false)}
-          setClickBubble={function (msg: string | null) {
-            console.log("Decoration:", msg);
-          }}
-        />
+        <div className="capsule-panel-center">
+          <DecorationPanel
+            state={state}
+            updateState={updateState}
+            onExit={() => setDecorating(false)}
+            setClickBubble={function (msg: string | null) {
+              console.log("Decoration:", msg);
+            }}
+          />
         </div>
       ) : (
         <CapsuleScene

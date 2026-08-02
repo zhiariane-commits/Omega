@@ -1215,14 +1215,18 @@
   opacity: 0.85;
 }
 
-/* ---------- ????????????/???/??? ---------- */
+/* ---------- 太空舱内居中面板（书架/合成机/装修） ---------- */
 .capsule-panel-center {
-  position: relative;
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
-  height: 100%;
-  min-height: 0;
-  overflow-y: auto;
+  z-index: 10;
+  pointer-events: none;
+}
+/* 面板容器不拦截点击，但要让所有直接子面板恢复可交互（合成机/装修面板没有 floating-panel 类） */
+.capsule-panel-center > * {
+  pointer-events: auto;
 }
 .capsule-panel-center .floating-panel {
   position: relative;
