@@ -7,6 +7,56 @@
     ],
     "Physics": "click.physics3.json",
     "DisplayInfo": "click.cdi3.json",
+    "Expressions": [
+      {
+        "Name": "calm_positive",
+        "File": "calm_positive.exp3.json"
+      },
+      {
+        "Name": "calm_negative",
+        "File": "calm_negative.exp3.json"
+      },
+      {
+        "Name": "happy",
+        "File": "happy.exp3.json"
+      },
+      {
+        "Name": "shy",
+        "File": "shy.exp3.json"
+      },
+      {
+        "Name": "sad",
+        "File": "sad.exp3.json"
+      },
+      {
+        "Name": "proud",
+        "File": "proud.exp3.json"
+      },
+      {
+        "Name": "expectant",
+        "File": "expectant.exp3.json"
+      },
+      {
+        "Name": "confused",
+        "File": "confused.exp3.json"
+      },
+      {
+        "Name": "down",
+        "File": "down.exp3.json"
+      },
+      {
+        "Name": "angry",
+        "File": "angry.exp3.json"
+      },
+      {
+        "Name": "fearful",
+        "File": "fearful.exp3.json"
+      },
+      {
+        "Name": "excited",
+        "File": "excited.exp3.json"
+      }
+    ],
     "Motions": {
       "click": [
         {

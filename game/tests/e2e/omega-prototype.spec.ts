@@ -47,7 +47,7 @@ test.describe("Ω desktop pet functional prototype", () => {
     await seedReadyState(page);
     await page.goto("/?view=floating");
 
-    await expect(page.getByText("Ω · 平静 · 好感 12")).toBeVisible();
+    await expect(page.getByText("Ω · 平静（愉悦） · 好感 12")).toBeVisible();
     await page.getByRole("button", { name: "Ω" }).click();
     await expect(page.getByRole("button", { name: "输入" })).toBeVisible();
     await expect(page.getByRole("button", { name: "记录" })).toBeVisible();
