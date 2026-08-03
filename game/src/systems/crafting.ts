@@ -234,7 +234,9 @@ export const ALL_RECIPES: CraftRecipe[] = [
     effect: "解锁扩建材料和工具",
     flavor: "太空舱的扩建图纸。",
     unlockCondition: "心境值首次达到300",
-    isUnlocked: (s) => s.mood >= 300,
+    // 首次达到 300 后永久解锁：购买过一次图纸（unlocked.construction）后，
+    // 即使心境回落也保持可再购买，供 M5 重触发后重新合成
+    isUnlocked: (s) => s.mood >= 300 || s.unlocked.construction,
     apply: (s) => ({ unlocked: { ...s.unlocked, construction: true } }),
   },
   {

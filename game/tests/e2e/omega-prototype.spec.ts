@@ -353,5 +353,69 @@ test.describe("Ω desktop pet functional prototype", () => {
     await page.getByRole("button", { name: "太空舱" }).click();
     await expect(page.getByText("Ω 太空舱")).toBeVisible();
     await expect(page.getByRole("button", { name: "扩建区", exact: true }).first()).toBeVisible();
+
+    // 开发者选项重新触发 M5：默认刷新合成机相关内容状态，可重新合成材料
+    await page.getByRole("button", { name: "关闭太空舱" }).click();
+    await page.getByRole("button", { name: "开发者选项" }).click();
+    const m5Row = page.locator(".dev-panel__milestone-item", { hasText: "M5 扩建完成" });
+    await m5Row.getByRole("button", { name: "重新触发" }).click();
+    await expect(m5Row.getByRole("button", { name: "重新触发" })).toBeDisabled();
+    const reset = await page.evaluate(() => JSON.parse(localStorage.getItem("omega.browser.state") ?? "{}"));
+    expect(reset.completedMilestones).not.toContain("m5_craft_asked");
+    expect(reset.completedMilestones).not.toContain("m5_construction");
+    expect(reset.purchasedItems).toEqual(
+      expect.not.arrayContaining(["blueprint_expand", "material_tools", "material_supplies"])
+    );
+    expect(reset.m5ConstructStartAt).toBeNull();
+    expect(reset.room2Unlocked).toBe(false);
+    // 图纸为「首次达到 300 后永久解锁」：重触发保留扩建解锁，阶段1气泡重新出现
+    expect(reset.unlocked.construction).toBe(true);
+
+    // 先关闭开发者面板（气泡渲染在其下层），再处理重新触发的阶段1气泡
+    await page.getByRole("button", { name: "关闭" }).click();
+    await expect(page.locator(".milestone-bubble")).toContainText("合成机似乎解锁了新的配方！");
+    await page.locator(".milestone-bubble__dismiss").click();
+
+    // 心境已低于 300（图纸/工具/材料各耗 50 + M5 奖励 10），图纸仍应出现在合成机「图纸」列表
+    await page.getByRole("button", { name: "Ω" }).click();
+    await page.getByRole("button", { name: "事项" }).click();
+    await page.getByRole("button", { name: "合成机" }).click();
+    const panel2 = page.locator(".crafting-panel");
+    await expect(panel2).toBeVisible();
+    await panel2.getByRole("button", { name: "图纸" }).click();
+    await expect(panel2.getByText("太空舱扩建图纸")).toBeVisible();
+  });
+
+  test("M5 room2 expansion zone opens and renders without crash", async ({ page }) => {
+    // 前置：M5 已完成（room2Unlocked），直接进入扩建区验证 PixiJS 场景正常渲染
+    const pageErrors: string[] = [];
+    page.on("pageerror", (e) => pageErrors.push(e.message));
+    await page.addInitScript((state) => {
+      window.localStorage.setItem("omega.browser.forceMock", "1");
+      if (!window.localStorage.getItem("omega.browser.state")) {
+        window.localStorage.setItem("omega.browser.state", JSON.stringify(state));
+      }
+      window.localStorage.removeItem("omega.browser.memories");
+    }, {
+      ...readyState,
+      mood: 300,
+      unlocked: {
+        activeGreeting: true,
+        cleanCapsule: false,
+        game: false,
+        writing: false,
+        bookshelf: false,
+        construction: true,
+        gardening: false,
+      },
+      completedMilestones: ["m1_first_greeting", "m2_clean_asked", "m2_clean_capsule", "m3_show_world", "m4_childhood_story", "m5_craft_asked", "m5_construction"],
+      m5ConstructStartAt: null,
+      room2Unlocked: true,
+      purchasedItems: ["blueprint_expand", "material_tools", "material_supplies"],
+    });
+    await page.goto("/?view=capsule");
+    await page.getByRole("button", { name: "扩建区", exact: true }).first().click();
+    await expect(page.getByText("扩建空间")).toBeVisible();
+    expect(pageErrors).toEqual([]);
   });
 });

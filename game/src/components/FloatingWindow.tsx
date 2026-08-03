@@ -27,6 +27,7 @@ import {
   M4_CHILDHOOD_STORY_GREETING,
   ALL_MILESTONES,
 } from "../systems/storyMilestones";
+import { M5_CRAFT_RECIPE_IDS } from "../systems/crafting";
 import { generateOptions } from "../systems/optionAgent";
 import type { AgentOption } from "../systems/optionAgent";
 
@@ -1096,9 +1097,32 @@ function DevPanel({
       setTimeout(() => setClickBubble(null), 2000);
       return;
     }
-    const updated = current.filter((m) => m !== milestoneId);
-    await updateState({ completedMilestones: updated, pendingMilestoneEvent: null });
-    setClickBubble("已重置: " + milestoneId + "，返回桌面后条件满足时会重新触发");
+    // M5 重触发：整段重置（阶段1提醒 + 阶段2完成），并刷新合成机相关内容状态
+    const isM5 =
+      milestoneId === "m5_craft_asked" || milestoneId === "m5_construction";
+    const updated = isM5
+      ? current.filter((m) => m !== "m5_craft_asked" && m !== "m5_construction")
+      : current.filter((m) => m !== milestoneId);
+    const partial: Partial<OmegaState> = {
+      completedMilestones: updated,
+      pendingMilestoneEvent: null,
+    };
+    if (isM5) {
+      // 清空扩建配方购买记录与动工时间戳、锁定房间2；保留扩建解锁（图纸已永久解锁），
+      // 阶段1气泡会按条件重新触发，随后可重新合成图纸/工具/材料走完整 M5 流程
+      partial.m5ConstructStartAt = null;
+      partial.room2Unlocked = false;
+      partial.purchasedItems = (state.purchasedItems ?? []).filter(
+        (id) => !(M5_CRAFT_RECIPE_IDS as readonly string[]).includes(id)
+      );
+    }
+    await updateState(partial);
+    const label = milestoneLabels[milestoneId] ?? milestoneId;
+    setClickBubble(
+      isM5
+        ? "已重置: " + label + "（含合成机扩建配方，可重新合成材料）"
+        : "已重置: " + milestoneId + "，返回桌面后条件满足时会重新触发"
+    );
     setTimeout(() => setClickBubble(null), 3000);
   }
 

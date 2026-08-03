@@ -246,14 +246,7 @@ export default function Room2Scene({
     }
 
     void init();
-    // --- Reactive face updates when emotion changes ---
-  useEffect(() => {
-    if (faceRef.current) {
-      drawFaceGraphicsRoom2(faceRef.current, emotion);
-    }
-  }, [emotion]);
-
-  return () => {
+    return () => {
       disposed = true;
       window.removeEventListener("keydown", keyDown);
       window.removeEventListener("keyup", keyUp);
@@ -262,6 +255,13 @@ export default function Room2Scene({
       if (host) host.replaceChildren();
     };
   }, [emotion, equippedDecorations, placing]);
+
+  // --- Reactive face updates when emotion changes ---
+  useEffect(() => {
+    if (faceRef.current) {
+      drawFaceGraphicsRoom2(faceRef.current, emotion);
+    }
+  }, [emotion]);
 
   // Render furniture when it changes
   useEffect(() => {
