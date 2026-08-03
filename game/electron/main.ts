@@ -469,7 +469,7 @@ async function describeScreenshot(dataUrl: string): Promise<string> {
   const visionModel = process.env.VISION_MODEL ?? "mimo-v2.5";
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
     const response = await fetch(`${baseUrl}/chat/completions`, {
       signal: controller.signal,
       method: "POST",
@@ -480,7 +480,8 @@ async function describeScreenshot(dataUrl: string): Promise<string> {
           { role: "system", content: "直接描述这张截图的内容。" },
           { role: "user", content: [{ type: "text", text: "请描述这张截图" }, { type: "image_url", image_url: { url: dataUrl } }] }
         ],
-        max_tokens: 150
+        max_tokens: 150,
+        thinking: { type: "disabled" }
       })
     });
     clearTimeout(timeoutId);
@@ -820,7 +821,7 @@ ipcMain.handle("ai:sendMessage", async (_event, payload: { text: string; include
   if (payload.includeScreenshot) {
     const screenshot = await capturePrimaryScreen().catch(() => undefined);
     if (screenshot) {
-      floatingWindow?.webContents?.send("omega-thinking", "嗯……我得调试一下我这边的接收器，它有点慢。");
+      floatingWindow?.webContents?.send("omega-thinking", "嗯……我得调试一下我这边的接收器，它有点慢。（请不要改变屏幕，不然我的接收器会识别失败的）");
       console.log('[vision] env check - VISION_API_KEY:', process.env.VISION_API_KEY ? 'exists' : 'MISSING', 'VISION_MODEL:', process.env.VISION_MODEL, 'MIMO_API_KEY:', process.env.MIMO_API_KEY ? 'exists' : 'MISSING');
       const visionResult = await describeScreenshot(screenshot);
       if (visionResult) {
