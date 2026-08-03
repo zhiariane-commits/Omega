@@ -10,7 +10,7 @@
 
 - 一个驻留桌面的 Live2D 宠物：悬浮窗 + 太空舱（2D 房间）双窗口形态，双窗口状态实时同步。
 - 情感模拟：心境值（15–1000）、好感度、11 种情绪、待机行为概率池、被动增长（在线 tick / 离线补算 / 装饰加成）。
-- 叙事与养成：M0 序幕 → M1 打招呼 → M2 清扫太空舱 → 看世界 → 童年记忆 → 扩建 → 游戏 → 书橱写作 的主线里程碑与分支对话树。
+- 叙事与养成：M0 序幕 → M1 打招呼 → M2 清扫太空舱 → M3 看世界 → M4 童年记忆 → M5 扩建 → M6 游戏 → M7 书橱写作 的主线里程碑（M0–M5 已实现，M6/M7 未完成）与分支对话树。
 - AI 交互：OpenAI-compatible（默认 MIMO）Chat Completions 驱动聊天，支持屏幕截图识别（打碎第四面墙）；无密钥时自动降级本地 mock，保证离线可玩。
 - 功能面板：输入 / 记录 / 事项（闹钟、游戏、专注模式）、合成机、装修、书架、房间 2。
 - 状态持久化与跨窗口同步；提供浏览器调试模式（`src/browserBridge.ts`）支撑 E2E 测试。
@@ -22,7 +22,7 @@
 - 不做移动端、不做正式发行：Electron 是唯一交付形态。
 - 不做正式美术与动画流水线：Live2D 表情/动作与 2D 场景以现有 `public/` 素材 + 占位为主。
 - 不实现真实“游戏代打”（如原神自动操作）：“游戏”功能仅保留解锁条件与占位 UI。
-- 不把 `game/README.md` 中“暂未实现”清单当作当前迭代目标：闹钟倒计时/专注累计时长、合成机/装修/扩建/书橱写作完整周期、主线 2 之后的完整剧情、正式美术资源。
+- 不把下列尚未实现项当作当前迭代目标：正式美术资源与动作序列（Live2D 表情/动作与 2D 场景以现有 `public/` 素材 + 占位为主）、M6「游戏」真实代打能力（仅保留解锁条件与占位 UI）、M7「书橱写作」完整周期（现实 3-5 天写作周期、间隔 1-2 天、AI 创作、故事入库书架）、正式发行与打包分发。
 - 不引入重型状态管理库（Redux/MobX 等）、不重写样式为 UI 框架（Tailwind 等）、不无理由重构既有目录与命名。
 
 ## 二、技术栈与规范
@@ -46,7 +46,7 @@
 - 代码风格：2 空格缩进、双引号、行尾分号，与现有代码一致。当前**未配置** Prettier/ESLint/format 脚本，不得无谓大范围重排代码。
 - UI 风格（依据设计文档）：科幻风、深色冷色调，机械 / 星际 / 赛博朋克元素需统一。
 - 源文件一律 UTF-8；注释与用户可见文案使用中文。
-- 环境变量：对话 `MIMO_API_KEY` / `MIMO_MODEL` / `MIMO_BASE_URL`（兼容 `OPENAI_*`）；视觉 `VISION_API_KEY` / `VISION_MODEL` / `VISION_BASE_URL`。配置位于 `game/.env.local`（当前被 Git 跟踪，提交时勿引入真实密钥）。
+- 环境变量：对话 `MIMO_API_KEY` / `MIMO_MODEL` / `MIMO_BASE_URL`（兼容 `OPENAI_*`）；视觉 `VISION_API_KEY` / `VISION_MODEL` / `VISION_BASE_URL`。模板 `game/.env.local.example` 入库跟踪；`game/.env.local` 被 `.gitignore` 忽略、不随 Git 提交，勿提交或外传真实密钥。AI 配置也可在序章“AI 配置步骤”界面填写（API KEY/模型名/接入地址 + 连通性测试），持久化到 Electron userData `omega-ai-config.json`；`.env.local` 仅用于手动配置，运行时不写入。
 
 ## 三、目录结构
 
@@ -65,10 +65,10 @@ omega/                                  # Git 仓库根（项目根）
 │   │   ├── components/                 # UI 组件（悬浮窗/太空舱/序章/合成机/装修/书架/房间2等）
 │   │   ├── systems/                    # 纯逻辑系统（心境/待机/叙事/合成/里程碑/音频等）
 │   │   └── styles/app.css              # 全局样式
-│   ├── public/                         # 静态资源：live2d 模型与表情、太空舱背景、待机贴图
+│   ├── public/                         # 静态资源：live2d 模型与表情、太空舱背景（脏/干净/装修中/房间2）、待机贴图、情绪贴纸
 │   ├── tests/e2e/                      # Playwright 用例（omega-prototype.spec.ts）
 │   ├── scripts/                        # 一次性工具脚本（如去白底）
-│   ├── index.html / vite.config.ts / tsconfig*.json / playwright.config.ts
+│   ├── index.html / vite.config.ts / tsconfig*.json / playwright.config.ts / .env.local.example
 │   ├── package.json / package-lock.json
 │   └── 启动游戏.bat                    # 双击启动（等价 npm run dev）
 ├── 设计文档/                           # 玩法设计稿（.gitignore，不提交）
@@ -80,7 +80,7 @@ omega/                                  # Git 仓库根（项目根）
 
 - `src/components/FloatingWindow.tsx` — 悬浮窗（气泡菜单、聊天输入与 Ω 回复气泡、提词器选项、本次记录、闹钟、专注模式）。
 - `src/components/CapsuleWindow.tsx` / `CapsuleScene.tsx` — 太空舱窗口与 PixiJS 2D 场景（WASD 移动、书桌、床、书架、装修、合成机）。
-- `src/components/M0Prologue.tsx` — 序幕：黑场白字、昵称输入（启动后不可更改）。
+- `src/components/M0Prologue.tsx` — 序幕：黑场白字、AI 配置步骤（API KEY/模型名/接入地址 + 连通性测试）、昵称输入（启动后不可更改）。
 - `src/components/Live2DModel.tsx` — Live2D 模型加载与情绪表情封装。
 - `src/systems/passiveMood.ts` — 心境值被动增长（在线 tick / 离线补算 / 装饰加成）。
 - `src/systems/idleBehavior.ts` — 待机行为概率池（发呆/看书/写作/浇花/木牌等）。
