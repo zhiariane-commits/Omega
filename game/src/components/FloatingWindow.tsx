@@ -23,6 +23,8 @@ import {
   isM2CleanStoryPending,
   isM3WorldPending,
   M3_SHOW_WORLD_GREETING,
+  isM4StoryPending,
+  M4_CHILDHOOD_STORY_GREETING,
   ALL_MILESTONES,
 } from "../systems/storyMilestones";
 import { generateOptions } from "../systems/optionAgent";
@@ -203,6 +205,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       setOmegaBubbleText(response.reply);
       generateAgentOptions(response.reply);
       // M3：启用屏幕识别并完成一轮对话后，视为「看世界」完成（红点与引导随之消失）
+      // M4：完成一轮对话后，视为「童年记忆」完成（红点与引导随之消失）
       const nextState = response.state;
       if (
         includeScreenshot &&
@@ -210,6 +213,9 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
         !(nextState.completedMilestones ?? []).includes("m3_show_world")
       ) {
         await updateState(applyMilestoneReward("m3_show_world", nextState));
+      }
+      if (nextState && isM4StoryPending(nextState)) {
+        await updateState(applyMilestoneReward("m4_childhood_story", nextState));
       }
       if (response.featureIntent === "capsule") {
         await window.omega.window.openCapsule();
@@ -355,10 +361,11 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   // ---------- 里程碑检测 ----------
   useEffect(() => {
     const result = checkMilestones(stateRef.current);
-    // M3 不显示悬浮气泡：改为「输入」红点 + 输入界面「屏幕识别」红点引导
+    // M3/M4 不显示悬浮气泡：改为「输入」红点 + 输入界面引导文案
     if (
       result.triggered &&
       result.triggered !== "m3_show_world" &&
+      result.triggered !== "m4_childhood_story" &&
       !stateRef.current.pendingMilestoneEvent
     ) {
       updateState({ pendingMilestoneEvent: result.bubbleText }).catch(() => {});
@@ -488,9 +495,11 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       const log = await window.omega.state.getSessionLog();
       const lastOmega = [...log].reverse().find(l => l.speaker === 'omega');
       let bubbleText = lastOmega?.text ?? null;
-      // M3 等待期间：输入界面打招呼气泡替换为 M3 引导文案（不占用首次打招呼）
+      // M3/M4 等待期间：输入界面打招呼气泡替换为引导文案（不占用首次打招呼）
       if (isM3WorldPending(stateRef.current)) {
         bubbleText = M3_SHOW_WORLD_GREETING;
+      } else if (isM4StoryPending(stateRef.current)) {
+        bubbleText = M4_CHILDHOOD_STORY_GREETING;
       } else if (!greetingShownRef.current) {
         // Only show periodic topic on the first chat open of this launch
         greetingShownRef.current = true;
@@ -796,6 +805,7 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
             className={[
               moodLocked ? "is-locked" : "",
               isM3WorldPending(state) ? "m3-red-dot" : "",
+              isM4StoryPending(state) ? "m4-red-dot" : "",
             ].filter(Boolean).join(" ")}
             onClick={(e) => {
               e?.stopPropagation();

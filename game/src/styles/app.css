@@ -968,12 +968,14 @@
 
 /* ---------- 里程碑红点提示：M2 太空舱入口 / M3 输入入口 ---------- */
 .bubble-menu button.m2-red-dot,
-.bubble-menu button.m3-red-dot {
+.bubble-menu button.m3-red-dot,
+.bubble-menu button.m4-red-dot {
   position: relative;
 }
 
 .bubble-menu button.m2-red-dot::after,
-.bubble-menu button.m3-red-dot::after {
+.bubble-menu button.m3-red-dot::after,
+.bubble-menu button.m4-red-dot::after {
   content: "";
   position: absolute;
   top: -2px;

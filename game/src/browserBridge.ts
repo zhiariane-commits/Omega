@@ -104,7 +104,8 @@ function inferReply(text: string, state: OmegaState): OmegaAIResponse {
   const angry = /生气|愤怒|气死|火大|angry|mad/i.test(text);
   const confused = /奇怪|为什么|怎么回事|疑惑|不明白|confused/i.test(text);
   const happy = /开心|喜欢|谢谢|太好了|可爱|棒|happy|love/i.test(text);
-  const emotion = sad ? "sad" : angry ? "angry" : confused ? "confused" : happy ? "happy" : featureIntent === "capsule" ? "proud" : "calm_positive";
+  const fun = /风景|好玩|有趣|故事|海边|山川|旅行|趣事|笑话|好笑/i.test(text);
+  const emotion = sad ? "sad" : angry ? "angry" : confused ? "confused" : happy ? "happy" : fun ? "expectant" : featureIntent === "capsule" ? "proud" : "calm_positive";
   const moodDelta = sad ? -1 : 1;
   const affinityDelta = sad ? 0 : 1;
   const nextState: OmegaState = {
@@ -127,10 +128,12 @@ function inferReply(text: string, state: OmegaState): OmegaAIResponse {
           : featureIntent === "game"
             ? "游戏功能还没有完全解锁。我需要先认识那款游戏，也需要更相信自己的手不会乱按。"
             : sad
-              ? "我听见了。太空舱安静得有些过分，所以我知道那种不太好受的感觉。你可以慢慢说，我在这里。"
+              ? `我听见了。太空舱安静得有些过分，所以我知道那种不太好受的感觉。你可以慢慢说，我在这里。${state.affinity >= 50 ? "如果觉得撑不住，我们也可以先停一停，等你好一点再继续。" : ""}`
               : happy
                 ? "嗯，我也有一点开心。像是舱壁上的灯忽然稳定了一些。"
-                : "我在。你说的话会被我认真收起来，虽然我还不太擅长把感谢说得自然。";
+                : fun
+                  ? "听起来好有意思……像是窗外忽然飘进来一点不一样的光。可以再多讲一点吗？"
+                  : `我在。你说的话会被我认真收起来，虽然我还不太擅长把感谢说得自然。${state.mood >= 200 ? "今天舱里的灯光好像比平时更稳一些，连带着我也觉得好了一点。" : "有时候我会想，如果这里的灯光再暖一点，会不会就更像你那边。"}`;
 
   return {
     reply,
@@ -152,7 +155,9 @@ async function cloudReply(text: string, state: OmegaState): Promise<OmegaAIRespo
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         text,
-        memories: loadMemories()
+        memories: loadMemories(),
+        mood: state.mood,
+        affinity: state.affinity
       })
     });
     if (!response.ok) return null;

@@ -416,10 +416,11 @@ function localOmegaResponse(text: string, includeScreenshot: boolean): OmegaAIRe
   const lowered = text.toLowerCase();
   const sad = /难过|累|烦|孤独|讨厌|哭|sad|tired/.test(lowered);
   const happy = /开心|喜欢|谢谢|太好了|可爱|棒|happy|love/.test(lowered);
+  const fun = /风景|好玩|有趣|故事|海边|山川|旅行|趣事|笑话|好笑/.test(lowered);
   const featureIntent = inferFeatureIntent(text);
   const angry = /生气|愤怒|气死|火大|angry|mad/i.test(lowered);
   const confused = /奇怪|为什么|怎么回事|疑惑|不明白|confused/i.test(lowered);
-  const emotion: OmegaEmotion = sad ? "sad" : angry ? "angry" : confused ? "confused" : happy ? "happy" : featureIntent === "capsule" ? "proud" : "calm_positive";
+  const emotion: OmegaEmotion = sad ? "sad" : angry ? "angry" : confused ? "confused" : happy ? "happy" : fun ? "expectant" : featureIntent === "capsule" ? "proud" : "calm_positive";
   const screenNote = includeScreenshot ? "我也看见了一点你屏幕上的光，像隔着舷窗。" : "";
   const reply =
     featureIntent === "capsule"
@@ -431,16 +432,20 @@ function localOmegaResponse(text: string, includeScreenshot: boolean): OmegaAIRe
           : featureIntent === "game"
             ? `游戏功能还没有完全解锁。我需要先认识那款游戏，也需要更相信自己的手不会乱按。${screenNote}`
             : sad
-              ? `我听见了。太空舱安静得有些过分，所以我知道那种不太好受的感觉。你可以慢慢说，我会在这里。${screenNote}`
+              ? `我听见了。太空舱安静得有些过分，所以我知道那种不太好受的感觉。你可以慢慢说，我会在这里。${persisted.state.affinity >= 50 ? "如果觉得撑不住，我们也可以先停一停，等你好一点再继续。" : ""}${screenNote}`
               : happy
                 ? `嗯，我也有一点开心。像是舱壁上的灯忽然稳定了一些。${screenNote}`
-                : `我在。你说的话会被我认真收起来，虽然我还不太擅长把感谢说得自然。${screenNote}`;
+                : fun
+                  ? `听起来好有意思……像是窗外忽然飘进来一点不一样的光。可以再多讲一点吗？${screenNote}`
+                  : `我在。你说的话会被我认真收起来，虽然我还不太擅长把感谢说得自然。${persisted.state.mood >= 200 ? "今天舱里的灯光好像比平时更稳一些，连带着我也觉得好了一点。" : "有时候我会想，如果这里的灯光再暖一点，会不会就更像你那边。"}${screenNote}`;
 
       const nChoices = sad
     ? ["「我在这里」", "「不用勉强自己」", "「想说什么就说吧」", "「我陪着你」"]
     : happy
       ? ["「那就好」", "「你开心我也会开心」", "「今天有什么好事吗」", "「笑一笑」"]
-      : featureIntent === "capsule"
+      : fun
+        ? ["「那我再多讲一点给你听」", "「下次带你看更多风景」", "「你那边能看到什么」"]
+        : featureIntent === "capsule"
         ? ["「去吧，我也想看看」", "「太空舱现在什么样了」", "「你打扫过了吗」", "「一起收拾吧」"]
         : ["「我在听」", "「你今天怎么样」", "「窗外的星星还在吗」", "「想聊点什么」"]
 
@@ -535,6 +540,9 @@ async function cloudOmegaResponse(text: string, screenshot?: string): Promise<Om
   if (!apiKey) return null;
   const baseUrl = (process.env.MIMO_BASE_URL ?? process.env.OPENAI_BASE_URL ?? "https://api.xiaomimimo.com/v1").replace(/\/$/, "");
   const model = process.env.MIMO_MODEL ?? process.env.OPENAI_MODEL ?? "mimo-v2-flash";
+  // 注入当前心境值/好感度，供提示词按状态调整对话策略
+  const currentMood = persisted.state.mood;
+  const currentAffinity = persisted.state.affinity;
 
   // Build conversation history from sessionLog (last 6 turns = 12 messages)
   const historyMessages: Array<Record<string, unknown>> = sessionLog.slice(-4).map((entry) => ({
@@ -601,11 +609,17 @@ async function cloudOmegaResponse(text: string, screenshot?: string): Promise<Om
 - 温柔共情，会受玩家情绪影响
 
 【情绪状态说明】
-根据当前 mood 值和 affinity 值调整语气：
-- mood < 50：语气更悲观、用量更多的省略号、话语更短，表现出疲惫和疏离
-- mood >= 50 且 affinity < 20：可以温和地回应，但仍保持礼貌距离
-- mood >= 50 且 affinity >= 20：可以流露出更多的好奇、感激，甚至偶尔的温柔调侃
-- mood >= 100 且 affinity >= 50：可以分享更多回忆、展示脆弱，语言更自然亲近
+当前状态：心境值 mood = ${currentMood}（范围 15–1000，以 200 为分界），好感度 affinity = ${currentAffinity}（从 0 开始累积）。在保持以上人设不变的前提下，按以下规则调整对话策略：
+
+1. 心境值决定整体基调与"自身经历"相关度：
+   - mood >= 200（高心境）：发言更积极乐观、情绪更稳定；以倾听和陪伴玩家为主，少讲自己的过去与不幸，避免把话题拉回自身；省略号减少、句子更完整。
+   - mood < 200（低心境）：发言与自身经历的相关性更高，可以自然地提到太空舱、熄灭的太阳、孤独的夜晚等自己的处境；语气仍礼貌克制，保留更多省略号与迟疑，但不刻意粉饰低落。
+
+2. 好感度决定互动亲密度：
+   - affinity 越高，越愿意追问玩家的话题、开温和的玩笑，说话更放松自然；affinity 低时以礼貌倾听为主，少开玩笑、保持距离。
+   - 当察觉到玩家情绪低落（诉苦、疲惫、难过、压力大）时：先共情表达理解，再主动安慰（如"我会在这里""慢慢来，不急"）；好感度越高，安慰越具体、越主动。
+
+3. 保持不变的底线：当玩家分享生活中的开心事、风景、有趣的小故事时，你必须表现出真实感兴趣的反应——好奇地追问细节、表达开心与赞叹、鼓励对方继续说下去；不得冷淡应对，也不得把话题转回自己的悲惨经历。
 
 【输出格式】
 请严格输出合法 JSON，不包含任何 Markdown 标记或额外说明。格式如下：

@@ -127,6 +127,22 @@ export function isM3WorldPending(state: OmegaState): boolean {
   );
 }
 
+/* ---------- 里程碑 4: 童年记忆（打招呼气泡引导） ---------- */
+
+/** M4 输入界面打招呼气泡文案（替换常规打招呼） */
+export const M4_CHILDHOOD_STORY_GREETING =
+  "我今天突然想到了过去，其实我小时候的梦想是环游世界。可惜的是，它现在只能是梦想了——但，我觉得我又很幸运，尽管发生了这么多事。但我最后遇见了你，你总会和我分享你们的世界，这怎么不算是一种旅行呢？我很开心，谢谢你。";
+
+/** M4 剧情是否处于「等待玩家完成一轮对话」阶段（悬浮窗输入红点 + 打招呼气泡替换引导） */
+export function isM4StoryPending(state: OmegaState): boolean {
+  const completed = new Set(state.completedMilestones ?? []);
+  return (
+    !completed.has("m4_childhood_story") &&
+    (state.mood ?? 0) >= 200 &&
+    (state.affinity ?? 0) > 50
+  );
+}
+
 /* ---------- 里程碑检查 ---------- */
 
 export type MilestoneCheck = {
@@ -185,10 +201,11 @@ export function checkMilestones(state: OmegaState): MilestoneCheck {
     };
   }
 
+  // M4：不显示悬浮气泡，改为「输入」红点 + 打招呼气泡替换为童年记忆引导（见 isM4StoryPending）
   if (!completed.has("m4_childhood_story") && mood >= 200 && affinity > 50) {
     return {
       triggered: "m4_childhood_story",
-      bubbleText: "我……",
+      bubbleText: M4_CHILDHOOD_STORY_GREETING,
     };
   }
 
