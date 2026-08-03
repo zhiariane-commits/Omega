@@ -50,6 +50,16 @@ type OmegaAIResponse = {
   featureIntent?: FeatureIntent;
 };
 
+/** 序章 AI 配置提交参数（模型名/URL 留空时使用默认接入） */
+type AiConfigTestPayload = {
+  visionApiKey: string;
+  dialogueApiKey: string;
+  visionModel?: string;
+  visionBaseUrl?: string;
+  dialogueModel?: string;
+  dialogueBaseUrl?: string;
+};
+
 /** 序章 AI 配置功能测试结果 */
 type AiConfigTestResult = {
   visionOk: boolean;
@@ -750,22 +760,11 @@ function envLocalFilePath() {
   return path.join(__dirname, "..", ".env.local");
 }
 
-/** 把玩家输入的 API KEY 写入 game/.env.local，重启后仍然生效（文件已被 .gitignore 忽略）。 */
-function persistAiKeysToEnvFile(visionApiKey: string, dialogueApiKey: string) {
+/** 把玩家输入的 AI 配置写入 game/.env.local，重启后仍然生效（文件已被 .gitignore 忽略）。 */
+function persistAiConfigToEnvFile(config: AiConfigTestPayload) {
   const envPath = envLocalFilePath();
   try {
     const lines = existsSync(envPath) ? readFileSync(envPath, "utf8").split(/\r?\n/) : [];
-    const keyEntries: Array<[string, string]> = [
-      ["MIMO_API_KEY", dialogueApiKey],
-      ["VISION_API_KEY", visionApiKey]
-    ];
-    // 未配置时补充可用的默认接入（模型名/Base URL），保证重启后聊天与屏幕识别可用
-    const defaultEntries: Array<[string, string]> = [
-      ["MIMO_MODEL", "mimo-v2.5-pro"],
-      ["MIMO_BASE_URL", "https://api.xiaomimimo.com/v1"],
-      ["VISION_MODEL", "doubao-seed-2-0-mini-260428"],
-      ["VISION_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"]
-    ];
     const hasKey = (key: string) => lines.some((line) => {
       const trimmed = line.trim();
       return !trimmed.startsWith("#") && trimmed.split("=")[0]?.trim() === key;
@@ -781,12 +780,24 @@ function persistAiKeysToEnvFile(visionApiKey: string, dialogueApiKey: string) {
         lines.push(`${key}=${value}`);
       }
     };
-    for (const [key, value] of keyEntries) upsert(key, value);
+    // 玩家填写的值覆盖写入；未填写且缺失时补可用默认（保留 .env.local 已有自定义值）
+    upsert("MIMO_API_KEY", config.dialogueApiKey);
+    upsert("VISION_API_KEY", config.visionApiKey);
+    if (config.dialogueModel) upsert("MIMO_MODEL", config.dialogueModel);
+    if (config.dialogueBaseUrl) upsert("MIMO_BASE_URL", config.dialogueBaseUrl);
+    if (config.visionModel) upsert("VISION_MODEL", config.visionModel);
+    if (config.visionBaseUrl) upsert("VISION_BASE_URL", config.visionBaseUrl);
+    const defaultEntries: Array<[string, string]> = [
+      ["MIMO_MODEL", "mimo-v2.5-pro"],
+      ["MIMO_BASE_URL", "https://api.xiaomimimo.com/v1"],
+      ["VISION_MODEL", "doubao-seed-2-0-mini-260428"],
+      ["VISION_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"]
+    ];
     for (const [key, value] of defaultEntries) {
       if (!hasKey(key)) lines.push(`${key}=${value}`);
     }
     writeFileSync(envPath, lines.join("\n") + "\n", "utf8");
-    console.log("[ai:testConfig] API KEY 已写入", envPath);
+    console.log("[ai:testConfig] AI 配置已写入", envPath);
   } catch (e) {
     console.warn("[ai:testConfig] 写入 .env.local 失败（本次会话内仍生效）:", e);
   }
@@ -992,14 +1003,32 @@ ipcMain.handle("ai:sendMessage", async (_event, payload: { text: string; include
   await savePersistedData();
   return { ...aiResponse, state: persisted.state, screenshotCaptured: Boolean(screenContext), screenContext: screenContext };
 });
-ipcMain.handle("ai:testConfig", async (_event, payload: { visionApiKey: string; dialogueApiKey: string }): Promise<AiConfigTestResult> => {
+ipcMain.handle("ai:testConfig", async (_event, payload: AiConfigTestPayload): Promise<AiConfigTestResult> => {
   const visionKey = String(payload?.visionApiKey ?? "").trim();
   const dialogueKey = String(payload?.dialogueApiKey ?? "").trim();
+  const visionModel = String(payload?.visionModel ?? "").trim();
+  const visionBaseUrl = String(payload?.visionBaseUrl ?? "").trim();
+  const dialogueModel = String(payload?.dialogueModel ?? "").trim();
+  const dialogueBaseUrl = String(payload?.dialogueBaseUrl ?? "").trim();
+  // 玩家填写的配置立即写入本次会话环境变量
   if (visionKey) process.env.VISION_API_KEY = visionKey;
   if (dialogueKey) process.env.MIMO_API_KEY = dialogueKey;
-  if (visionKey || dialogueKey) persistAiKeysToEnvFile(visionKey, dialogueKey);
+  if (visionModel) process.env.VISION_MODEL = visionModel;
+  if (visionBaseUrl) process.env.VISION_BASE_URL = visionBaseUrl;
+  if (dialogueModel) process.env.MIMO_MODEL = dialogueModel;
+  if (dialogueBaseUrl) process.env.MIMO_BASE_URL = dialogueBaseUrl;
+  if (visionKey || dialogueKey) {
+    persistAiConfigToEnvFile({
+      visionApiKey: visionKey,
+      dialogueApiKey: dialogueKey,
+      visionModel: visionModel || undefined,
+      visionBaseUrl: visionBaseUrl || undefined,
+      dialogueModel: dialogueModel || undefined,
+      dialogueBaseUrl: dialogueBaseUrl || undefined
+    });
+  }
 
-  // 未配置时补充可用的默认接入（.env.local 已有的自定义值优先）
+  // 留空项补可用默认（.env.local 已有的自定义值优先）
   process.env.MIMO_BASE_URL ??= "https://api.xiaomimimo.com/v1";
   process.env.MIMO_MODEL ??= "mimo-v2.5-pro";
   process.env.VISION_BASE_URL ??= "https://ark.cn-beijing.volces.com/api/v3";

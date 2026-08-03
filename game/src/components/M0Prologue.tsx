@@ -114,6 +114,10 @@ export default function M0Prologue({ state, updateState }: Props) {
   const [aiSetupDetail, setAiSetupDetail] = useState("");
   const [visionApiKey, setVisionApiKey] = useState("");
   const [dialogueApiKey, setDialogueApiKey] = useState("");
+  const [visionModel, setVisionModel] = useState("");
+  const [visionBaseUrl, setVisionBaseUrl] = useState("");
+  const [dialogueModel, setDialogueModel] = useState("");
+  const [dialogueBaseUrl, setDialogueBaseUrl] = useState("");
 
   const lastOmegaBubbleRef = useRef<{ text: string; emotion: OmegaEmotion } | null>(null);
   const capsuleShellRef = useRef<HTMLDivElement>(null);
@@ -213,7 +217,14 @@ export default function M0Prologue({ state, updateState }: Props) {
     setAiSetupError("");
     setAiSetupDetail("");
     try {
-      const result = await window.omega.ai.testConfig({ visionApiKey: visionKey, dialogueApiKey: dialogueKey });
+      const result = await window.omega.ai.testConfig({
+        visionApiKey: visionKey,
+        dialogueApiKey: dialogueKey,
+        visionModel: visionModel.trim() || undefined,
+        visionBaseUrl: visionBaseUrl.trim() || undefined,
+        dialogueModel: dialogueModel.trim() || undefined,
+        dialogueBaseUrl: dialogueBaseUrl.trim() || undefined
+      });
       if (result.visionOk && result.dialogueOk) {
         setAiSetupStatus("success");
         return;
@@ -236,7 +247,7 @@ export default function M0Prologue({ state, updateState }: Props) {
       setAiSetupDetail("");
       setAiSetupStatus("error");
     }
-  }, [visionApiKey, dialogueApiKey]);
+  }, [visionApiKey, dialogueApiKey, visionModel, visionBaseUrl, dialogueModel, dialogueBaseUrl]);
 
   // ---------- 跳过 AI 配置，直接进入对话 ----------
   const handleAiConfigSkip = useCallback(() => {
@@ -295,31 +306,85 @@ export default function M0Prologue({ state, updateState }: Props) {
             </div>
           )}
           <form className="m0-ai-setup__form" onSubmit={handleAiConfigSubmit}>
-            <label className="m0-ai-setup__field">
+            <div className="m0-ai-setup__group">
               <span className="m0-ai-setup__label">视觉模型</span>
-              <input
-                className="m0-ai-setup__input"
-                type="password"
-                autoComplete="off"
-                value={visionApiKey}
-                onChange={(e) => setVisionApiKey(e.currentTarget.value)}
-                placeholder="推荐 doubao-seed-2-0-mini-260428"
-                disabled={aiInputDisabled}
-              />
-            </label>
-            <label className="m0-ai-setup__field">
+              <label className="m0-ai-setup__field">
+                <span className="m0-ai-setup__field-label">API KEY</span>
+                <input
+                  className="m0-ai-setup__input"
+                  type="text"
+                  autoComplete="off"
+                  value={visionApiKey}
+                  onChange={(e) => setVisionApiKey(e.currentTarget.value)}
+                  placeholder="粘贴视觉模型 API KEY"
+                  disabled={aiInputDisabled}
+                />
+              </label>
+              <label className="m0-ai-setup__field">
+                <span className="m0-ai-setup__field-label">模型名</span>
+                <input
+                  className="m0-ai-setup__input"
+                  type="text"
+                  autoComplete="off"
+                  value={visionModel}
+                  onChange={(e) => setVisionModel(e.currentTarget.value)}
+                  placeholder="推荐 doubao-seed-2-0-mini-260428"
+                  disabled={aiInputDisabled}
+                />
+              </label>
+              <label className="m0-ai-setup__field">
+                <span className="m0-ai-setup__field-label">接入地址（URL）</span>
+                <input
+                  className="m0-ai-setup__input"
+                  type="text"
+                  autoComplete="off"
+                  value={visionBaseUrl}
+                  onChange={(e) => setVisionBaseUrl(e.currentTarget.value)}
+                  placeholder="推荐 https://ark.cn-beijing.volces.com/api/v3"
+                  disabled={aiInputDisabled}
+                />
+              </label>
+            </div>
+            <div className="m0-ai-setup__group">
               <span className="m0-ai-setup__label">对话模型</span>
-              <input
-                className="m0-ai-setup__input"
-                type="password"
-                autoComplete="off"
-                value={dialogueApiKey}
-                onChange={(e) => setDialogueApiKey(e.currentTarget.value)}
-                placeholder="推荐 mimo-v2.5-pro"
-                disabled={aiInputDisabled}
-              />
-            </label>
-            <p className="m0-ai-setup__privacy">（您的API KEY将只用于您的本地游玩，我们承诺不会使用或泄露您的API KEY）</p>
+              <label className="m0-ai-setup__field">
+                <span className="m0-ai-setup__field-label">API KEY</span>
+                <input
+                  className="m0-ai-setup__input"
+                  type="text"
+                  autoComplete="off"
+                  value={dialogueApiKey}
+                  onChange={(e) => setDialogueApiKey(e.currentTarget.value)}
+                  placeholder="粘贴对话模型 API KEY"
+                  disabled={aiInputDisabled}
+                />
+              </label>
+              <label className="m0-ai-setup__field">
+                <span className="m0-ai-setup__field-label">模型名</span>
+                <input
+                  className="m0-ai-setup__input"
+                  type="text"
+                  autoComplete="off"
+                  value={dialogueModel}
+                  onChange={(e) => setDialogueModel(e.currentTarget.value)}
+                  placeholder="推荐 mimo-v2.5-pro"
+                  disabled={aiInputDisabled}
+                />
+              </label>
+              <label className="m0-ai-setup__field">
+                <span className="m0-ai-setup__field-label">接入地址（URL）</span>
+                <input
+                  className="m0-ai-setup__input"
+                  type="text"
+                  autoComplete="off"
+                  value={dialogueBaseUrl}
+                  onChange={(e) => setDialogueBaseUrl(e.currentTarget.value)}
+                  placeholder="推荐 https://api.xiaomimimo.com/v1"
+                  disabled={aiInputDisabled}
+                />
+              </label>
+            </div>
+            <p className="m0-ai-setup__privacy">（您的API KEY将只用于您的本地游玩，我们承诺不会使用或泄露您的API KEY；模型名与URL留空时使用默认推荐配置）</p>
             <div className="m0-ai-setup__actions">
               <button type="submit" className="m0-intro__continue m0-ai-setup__submit" disabled={aiInputDisabled}>
                 {aiSetupStatus === "testing" ? "调试中..." : "连接测试"}

@@ -156,22 +156,18 @@ async function handleAiRequest(request: IncomingMessage, response: ServerRespons
 /** 序章 AI 配置：连通性测试用的小图片（64x64 蓝色方块） */
 const AI_TEST_IMAGE_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAXElEQVR4nO3PAQkAIBAAsU9iMBMbyxjHw2AFNnPuW02gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYHa+sAH1sABLUEOFXIAAAAASUVORK5CYII=";
 
-/** 把玩家输入的 API KEY 写入 game/.env.local（已被 .gitignore 忽略），重启后仍生效 */
-function persistAiKeys(visionApiKey: string, dialogueApiKey: string) {
+/** 把玩家输入的 AI 配置写入 game/.env.local（已被 .gitignore 忽略），重启后仍生效 */
+function persistAiConfig(config: {
+  visionApiKey: string;
+  dialogueApiKey: string;
+  visionModel?: string;
+  visionBaseUrl?: string;
+  dialogueModel?: string;
+  dialogueBaseUrl?: string;
+}) {
   const envPath = path.join(process.cwd(), ".env.local");
   try {
     const lines = existsSync(envPath) ? readFileSync(envPath, "utf8").split(/\r?\n/) : [];
-    const keyEntries: Array<[string, string]> = [
-      ["MIMO_API_KEY", dialogueApiKey],
-      ["VISION_API_KEY", visionApiKey]
-    ];
-    // 未配置时补充可用的默认接入（模型名/Base URL），保证重启后聊天与屏幕识别可用
-    const defaultEntries: Array<[string, string]> = [
-      ["MIMO_MODEL", "mimo-v2.5-pro"],
-      ["MIMO_BASE_URL", "https://api.xiaomimimo.com/v1"],
-      ["VISION_MODEL", "doubao-seed-2-0-mini-260428"],
-      ["VISION_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"]
-    ];
     const hasKey = (key: string) => lines.some((line) => {
       const trimmed = line.trim();
       return !trimmed.startsWith("#") && trimmed.split("=")[0]?.trim() === key;
@@ -184,7 +180,19 @@ function persistAiKeys(visionApiKey: string, dialogueApiKey: string) {
       if (idx >= 0) lines[idx] = `${key}=${value}`;
       else lines.push(`${key}=${value}`);
     };
-    for (const [key, value] of keyEntries) upsert(key, value);
+    // 玩家填写的值覆盖写入；未填写且缺失时补可用默认（保留 .env.local 已有自定义值）
+    upsert("MIMO_API_KEY", config.dialogueApiKey);
+    upsert("VISION_API_KEY", config.visionApiKey);
+    if (config.dialogueModel) upsert("MIMO_MODEL", config.dialogueModel);
+    if (config.dialogueBaseUrl) upsert("MIMO_BASE_URL", config.dialogueBaseUrl);
+    if (config.visionModel) upsert("VISION_MODEL", config.visionModel);
+    if (config.visionBaseUrl) upsert("VISION_BASE_URL", config.visionBaseUrl);
+    const defaultEntries: Array<[string, string]> = [
+      ["MIMO_MODEL", "mimo-v2.5-pro"],
+      ["MIMO_BASE_URL", "https://api.xiaomimimo.com/v1"],
+      ["VISION_MODEL", "doubao-seed-2-0-mini-260428"],
+      ["VISION_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"]
+    ];
     for (const [key, value] of defaultEntries) {
       if (!hasKey(key)) lines.push(`${key}=${value}`);
     }
@@ -238,21 +246,34 @@ async function handleAiTestRequest(request: IncomingMessage, response: ServerRes
     const body = await readJsonBody(request);
     const visionApiKey = String(body.visionApiKey ?? "").trim();
     const dialogueApiKey = String(body.dialogueApiKey ?? "").trim();
+    const visionModel = String(body.visionModel ?? "").trim();
+    const visionBaseUrl = String(body.visionBaseUrl ?? "").trim();
+    const dialogueModel = String(body.dialogueModel ?? "").trim();
+    const dialogueBaseUrl = String(body.dialogueBaseUrl ?? "").trim();
     if (visionApiKey) process.env.VISION_API_KEY = visionApiKey;
     if (dialogueApiKey) process.env.MIMO_API_KEY = dialogueApiKey;
-    if (visionApiKey || dialogueApiKey) persistAiKeys(visionApiKey, dialogueApiKey);
+    if (visionModel) process.env.VISION_MODEL = visionModel;
+    if (visionBaseUrl) process.env.VISION_BASE_URL = visionBaseUrl;
+    if (dialogueModel) process.env.MIMO_MODEL = dialogueModel;
+    if (dialogueBaseUrl) process.env.MIMO_BASE_URL = dialogueBaseUrl;
+    if (visionApiKey || dialogueApiKey) {
+      persistAiConfig({
+        visionApiKey,
+        dialogueApiKey,
+        visionModel: visionModel || undefined,
+        visionBaseUrl: visionBaseUrl || undefined,
+        dialogueModel: dialogueModel || undefined,
+        dialogueBaseUrl: dialogueBaseUrl || undefined
+      });
+    }
 
-    // 未配置时补充可用的默认接入（.env.local 已有的自定义值优先）
+    // 留空项补可用默认（.env.local 已有的自定义值优先）
     process.env.MIMO_BASE_URL ??= "https://api.xiaomimimo.com/v1";
     process.env.MIMO_MODEL ??= "mimo-v2.5-pro";
     process.env.VISION_BASE_URL ??= "https://ark.cn-beijing.volces.com/api/v3";
     process.env.VISION_MODEL ??= "doubao-seed-2-0-mini-260428";
 
-    const visionBaseUrl = (process.env.VISION_BASE_URL ?? process.env.MIMO_BASE_URL ?? process.env.OPENAI_BASE_URL ?? "https://ark.cn-beijing.volces.com/api/v3").replace(/\/$/, "");
-    const visionModel = process.env.VISION_MODEL ?? "doubao-seed-2-0-mini-260428";
     const visionKey = process.env.VISION_API_KEY ?? process.env.MIMO_API_KEY ?? process.env.OPENAI_API_KEY;
-    const dialogueBaseUrl = (process.env.MIMO_BASE_URL ?? process.env.OPENAI_BASE_URL ?? "https://api.xiaomimimo.com/v1").replace(/\/$/, "");
-    const dialogueModel = process.env.MIMO_MODEL ?? process.env.OPENAI_MODEL ?? "mimo-v2.5-pro";
     const dialogueKey = process.env.MIMO_API_KEY ?? process.env.OPENAI_API_KEY;
 
     const [vision, dialogue] = await Promise.all([

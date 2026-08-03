@@ -32,9 +32,13 @@ test.describe("Ω desktop pet functional prototype", () => {
     await page.goto("/");
 
     // M0 序章：黑屏/制作人名单结束后进入 AI 配置（API KEY 填写）
-    await expect(page.getByPlaceholder("推荐 doubao-seed-2-0-mini-260428")).toBeVisible({ timeout: 15_000 });
-    await page.getByPlaceholder("推荐 doubao-seed-2-0-mini-260428").fill("test-vision-key");
-    await page.getByPlaceholder("推荐 mimo-v2.5-pro").fill("test-dialogue-key");
+    await expect(page.getByPlaceholder("粘贴视觉模型 API KEY")).toBeVisible({ timeout: 15_000 });
+    await page.getByPlaceholder("粘贴视觉模型 API KEY").fill("test-vision-key");
+    await page.getByPlaceholder("粘贴对话模型 API KEY").fill("test-dialogue-key");
+    await page.getByPlaceholder("推荐 doubao-seed-2-0-mini-260428").fill("custom-vision-model");
+    await page.getByPlaceholder("推荐 https://ark.cn-beijing.volces.com/api/v3").fill("https://vision.example.com/v1");
+    await page.getByPlaceholder("推荐 mimo-v2.5-pro").fill("custom-dialogue-model");
+    await page.getByPlaceholder("推荐 https://api.xiaomimimo.com/v1").fill("https://dialogue.example.com/v1");
     await page.getByRole("button", { name: "连接测试" }).click();
     await expect(page.getByText("加载成功，祝您和Ω相处愉快！")).toBeVisible();
 
@@ -60,7 +64,7 @@ test.describe("Ω desktop pet functional prototype", () => {
     });
     await page.goto("/");
 
-    await expect(page.getByPlaceholder("推荐 doubao-seed-2-0-mini-260428")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByPlaceholder("粘贴视觉模型 API KEY")).toBeVisible({ timeout: 15_000 });
     await page.getByRole("button", { name: "暂不配置，跳过" }).click();
     await expect(page.getByText("你好，能听到我说话吗？")).toBeVisible({ timeout: 15_000 });
   });
@@ -71,9 +75,9 @@ test.describe("Ω desktop pet functional prototype", () => {
     });
     await page.goto("/");
 
-    await expect(page.getByPlaceholder("推荐 doubao-seed-2-0-mini-260428")).toBeVisible({ timeout: 15_000 });
-    await page.getByPlaceholder("推荐 doubao-seed-2-0-mini-260428").fill("invalid-vision");
-    await page.getByPlaceholder("推荐 mimo-v2.5-pro").fill("invalid-dialogue");
+    await expect(page.getByPlaceholder("粘贴视觉模型 API KEY")).toBeVisible({ timeout: 15_000 });
+    await page.getByPlaceholder("粘贴视觉模型 API KEY").fill("invalid-vision");
+    await page.getByPlaceholder("粘贴对话模型 API KEY").fill("invalid-dialogue");
     await page.getByRole("button", { name: "连接测试" }).click();
     await expect(page.getByText("视觉模型测试失败，请您换一个视觉模型试一试")).toBeVisible();
     await expect(page.getByText("对话模型测试失败，请您换一个对话模型试一试")).toBeVisible();

@@ -1,4 +1,4 @@
-import type { ChatLine, OmegaAIResponse, OmegaState } from "./types";
+import type { AiConfigTestPayload, ChatLine, OmegaAIResponse, OmegaState } from "./types";
 
 const defaultState: OmegaState = {
   nickname: "",
@@ -243,9 +243,9 @@ export function installBrowserBridge() {
         sessionLog.push({ speaker: "omega", text: response.reply, createdAt: new Date().toISOString() });
       return response as OmegaAIResponse & { state: OmegaState };
       },
-      testConfig: async ({ visionApiKey, dialogueApiKey }: { visionApiKey: string; dialogueApiKey: string }) => {
-        const visionKey = visionApiKey.trim();
-        const dialogueKey = dialogueApiKey.trim();
+      testConfig: async (payload: AiConfigTestPayload) => {
+        const visionKey = payload.visionApiKey.trim();
+        const dialogueKey = payload.dialogueApiKey.trim();
         // 浏览器调试模式：E2E（forceMock）走模拟结果；真实模式通过 Vite /api/ai/test 完成连通性测试
         if (forceMockAI()) {
           const visionFail = visionKey.includes("invalid");
@@ -261,7 +261,14 @@ export function installBrowserBridge() {
           const response = await fetch("/api/ai/test", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ visionApiKey: visionKey, dialogueApiKey: dialogueKey })
+            body: JSON.stringify({
+              visionApiKey: visionKey,
+              dialogueApiKey: dialogueKey,
+              visionModel: payload.visionModel?.trim() || undefined,
+              visionBaseUrl: payload.visionBaseUrl?.trim() || undefined,
+              dialogueModel: payload.dialogueModel?.trim() || undefined,
+              dialogueBaseUrl: payload.dialogueBaseUrl?.trim() || undefined
+            })
           });
           if (!response.ok) throw new Error("HTTP " + response.status);
           return await response.json();
