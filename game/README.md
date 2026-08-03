@@ -20,23 +20,34 @@ npm start
 
 ## AI 配置
 
-没有环境变量时，应用会使用本地降级人格回复，方便离线跑通原型。
+没有环境变量时，应用自动降级为本地模式：聊天使用本地人格回复、提词器不生成 AI 选项、屏幕识别不可用，保证离线可玩（E2E 使用 `omega.browser.forceMock=1`，无需密钥）。
 
-当前已支持 OpenAI-compatible 的 Chat Completions 接口，默认读取 `.env.local`：
+需要真实 AI 效果时，把 `game/.env.local.example` 复制为 `game/.env.local`，填入自己的密钥：
 
 ```bash
+# 对话（Ω 聊天 + 提词器）—— 默认 MIMO（OpenAI-compatible）
 MIMO_API_KEY=你的_key
-MIMO_MODEL=mimo-v2-flash
+MIMO_MODEL=mimo-v2.5-pro
 MIMO_BASE_URL=https://api.xiaomimimo.com/v1
+
+# 屏幕识别（视觉 agent）—— 火山方舟
+VISION_API_KEY=你的_key
+VISION_MODEL=doubao-seed-2-0-mini-260428
+VISION_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 ```
+
+说明：
+
+- `.env.local` 已被 `.gitignore` 忽略，不会随 Git 提交；请勿提交或外传真实密钥。
+- 对话也可使用 `OPENAI_API_KEY` / `OPENAI_MODEL` / `OPENAI_BASE_URL` 兼容其它供应商（优先级低于 `MIMO_*`）。
+- 提示词按上述模型调优，使用其它模型时回复风格可能略有差异。
+- 屏幕识别失败时只记录日志，不会把 `[vision ERROR]` 错误文本注入 Ω 上下文，聊天会正常降级继续。
 
 启动：
 
 ```bash
 npm run dev
 ```
-
-为了兼容其它供应商，也可以使用 `OPENAI_API_KEY`、`OPENAI_MODEL`、`OPENAI_BASE_URL`。
 
 ## 已实现范围
 
