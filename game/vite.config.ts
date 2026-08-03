@@ -2,7 +2,7 @@
 import type { OmegaEmotion, FeatureIntent, OmegaAIResponse } from "./src/types";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
@@ -156,52 +156,6 @@ async function handleAiRequest(request: IncomingMessage, response: ServerRespons
 /** 序章 AI 配置：连通性测试用的小图片（64x64 蓝色方块） */
 const AI_TEST_IMAGE_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAXElEQVR4nO3PAQkAIBAAsU9iMBMbyxjHw2AFNnPuW02gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYHa+sAH1sABLUEOFXIAAAAASUVORK5CYII=";
 
-/** 把玩家输入的 AI 配置写入 game/.env.local（已被 .gitignore 忽略），重启后仍生效 */
-function persistAiConfig(config: {
-  visionApiKey: string;
-  dialogueApiKey: string;
-  visionModel?: string;
-  visionBaseUrl?: string;
-  dialogueModel?: string;
-  dialogueBaseUrl?: string;
-}) {
-  const envPath = path.join(process.cwd(), ".env.local");
-  try {
-    const lines = existsSync(envPath) ? readFileSync(envPath, "utf8").split(/\r?\n/) : [];
-    const hasKey = (key: string) => lines.some((line) => {
-      const trimmed = line.trim();
-      return !trimmed.startsWith("#") && trimmed.split("=")[0]?.trim() === key;
-    });
-    const upsert = (key: string, value: string) => {
-      const idx = lines.findIndex((line) => {
-        const trimmed = line.trim();
-        return !trimmed.startsWith("#") && trimmed.split("=")[0]?.trim() === key;
-      });
-      if (idx >= 0) lines[idx] = `${key}=${value}`;
-      else lines.push(`${key}=${value}`);
-    };
-    // 玩家填写的值覆盖写入；未填写且缺失时补可用默认（保留 .env.local 已有自定义值）
-    upsert("MIMO_API_KEY", config.dialogueApiKey);
-    upsert("VISION_API_KEY", config.visionApiKey);
-    if (config.dialogueModel) upsert("MIMO_MODEL", config.dialogueModel);
-    if (config.dialogueBaseUrl) upsert("MIMO_BASE_URL", config.dialogueBaseUrl);
-    if (config.visionModel) upsert("VISION_MODEL", config.visionModel);
-    if (config.visionBaseUrl) upsert("VISION_BASE_URL", config.visionBaseUrl);
-    const defaultEntries: Array<[string, string]> = [
-      ["MIMO_MODEL", "mimo-v2.5-pro"],
-      ["MIMO_BASE_URL", "https://api.xiaomimimo.com/v1"],
-      ["VISION_MODEL", "doubao-seed-2-0-mini-260428"],
-      ["VISION_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"]
-    ];
-    for (const [key, value] of defaultEntries) {
-      if (!hasKey(key)) lines.push(`${key}=${value}`);
-    }
-    writeFileSync(envPath, lines.join("\n") + "\n", "utf8");
-  } catch (error) {
-    console.warn("[ai/test] 写入 .env.local 失败:", error);
-  }
-}
-
 /** 一次真实的 Chat Completions 连通性请求 */
 async function testChatCompletion(opts: {
   apiKey: string;
@@ -256,17 +210,8 @@ async function handleAiTestRequest(request: IncomingMessage, response: ServerRes
     if (visionBaseUrl) process.env.VISION_BASE_URL = visionBaseUrl;
     if (dialogueModel) process.env.MIMO_MODEL = dialogueModel;
     if (dialogueBaseUrl) process.env.MIMO_BASE_URL = dialogueBaseUrl;
-    if (visionApiKey || dialogueApiKey) {
-      persistAiConfig({
-        visionApiKey,
-        dialogueApiKey,
-        visionModel: visionModel || undefined,
-        visionBaseUrl: visionBaseUrl || undefined,
-        dialogueModel: dialogueModel || undefined,
-        dialogueBaseUrl: dialogueBaseUrl || undefined
-      });
-    }
-
+    // 注意：不写入 .env.local —— 本文件被 Vite 监听，.env* 变化会触发 dev server 重启导致页面重载。
+    // 浏览器调试模式仅本次会话生效（process.env）；Electron 端持久化走 userData。
     // 留空项补可用默认（.env.local 已有的自定义值优先）
     process.env.MIMO_BASE_URL ??= "https://api.xiaomimimo.com/v1";
     process.env.MIMO_MODEL ??= "mimo-v2.5-pro";

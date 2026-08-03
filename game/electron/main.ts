@@ -755,54 +755,6 @@ Omega: 因为这里能看到很多星星——比你们的夜空多得多。
 /** 序章 AI 配置：视觉/对话模型连通性测试用的小图片（64x64 蓝色方块） */
 const AI_TEST_IMAGE_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAXElEQVR4nO3PAQkAIBAAsU9iMBMbyxjHw2AFNnPuW02gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYHa+sAH1sABLUEOFXIAAAAASUVORK5CYII=";
 
-/** game/.env.local 的绝对路径（与启动时加载保持一致） */
-function envLocalFilePath() {
-  return path.join(__dirname, "..", ".env.local");
-}
-
-/** 把玩家输入的 AI 配置写入 game/.env.local，重启后仍然生效（文件已被 .gitignore 忽略）。 */
-function persistAiConfigToEnvFile(config: AiConfigTestPayload) {
-  const envPath = envLocalFilePath();
-  try {
-    const lines = existsSync(envPath) ? readFileSync(envPath, "utf8").split(/\r?\n/) : [];
-    const hasKey = (key: string) => lines.some((line) => {
-      const trimmed = line.trim();
-      return !trimmed.startsWith("#") && trimmed.split("=")[0]?.trim() === key;
-    });
-    const upsert = (key: string, value: string) => {
-      const idx = lines.findIndex((line) => {
-        const trimmed = line.trim();
-        return !trimmed.startsWith("#") && trimmed.split("=")[0]?.trim() === key;
-      });
-      if (idx >= 0) {
-        lines[idx] = `${key}=${value}`;
-      } else {
-        lines.push(`${key}=${value}`);
-      }
-    };
-    // 玩家填写的值覆盖写入；未填写且缺失时补可用默认（保留 .env.local 已有自定义值）
-    upsert("MIMO_API_KEY", config.dialogueApiKey);
-    upsert("VISION_API_KEY", config.visionApiKey);
-    if (config.dialogueModel) upsert("MIMO_MODEL", config.dialogueModel);
-    if (config.dialogueBaseUrl) upsert("MIMO_BASE_URL", config.dialogueBaseUrl);
-    if (config.visionModel) upsert("VISION_MODEL", config.visionModel);
-    if (config.visionBaseUrl) upsert("VISION_BASE_URL", config.visionBaseUrl);
-    const defaultEntries: Array<[string, string]> = [
-      ["MIMO_MODEL", "mimo-v2.5-pro"],
-      ["MIMO_BASE_URL", "https://api.xiaomimimo.com/v1"],
-      ["VISION_MODEL", "doubao-seed-2-0-mini-260428"],
-      ["VISION_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"]
-    ];
-    for (const [key, value] of defaultEntries) {
-      if (!hasKey(key)) lines.push(`${key}=${value}`);
-    }
-    writeFileSync(envPath, lines.join("\n") + "\n", "utf8");
-    console.log("[ai:testConfig] AI 配置已写入", envPath);
-  } catch (e) {
-    console.warn("[ai:testConfig] 写入 .env.local 失败（本次会话内仍生效）:", e);
-  }
-}
-
 /** userData 中持久化的 AI 配置（打包后 .env.local 不可写/不存在，重启靠它恢复） */
 type AiConfigFile = {
   visionApiKey?: string;
@@ -1070,17 +1022,8 @@ ipcMain.handle("ai:testConfig", async (_event, payload: AiConfigTestPayload): Pr
   if (visionBaseUrl) process.env.VISION_BASE_URL = visionBaseUrl;
   if (dialogueModel) process.env.MIMO_MODEL = dialogueModel;
   if (dialogueBaseUrl) process.env.MIMO_BASE_URL = dialogueBaseUrl;
-  if (visionKey || dialogueKey) {
-    persistAiConfigToEnvFile({
-      visionApiKey: visionKey,
-      dialogueApiKey: dialogueKey,
-      visionModel: visionModel || undefined,
-      visionBaseUrl: visionBaseUrl || undefined,
-      dialogueModel: dialogueModel || undefined,
-      dialogueBaseUrl: dialogueBaseUrl || undefined
-    });
-  }
-
+  // 注意：不写入 .env.local —— Vite 开发服务器监听 .env* 变化会重启服务，
+  // 导致渲染进程重载、序章从头重播（又要重新输入）。持久化统一走 userData（见下方 saveAiConfig）。
   // 留空项补可用默认（.env.local 已有的自定义值优先）
   process.env.MIMO_BASE_URL ??= "https://api.xiaomimimo.com/v1";
   process.env.MIMO_MODEL ??= "mimo-v2.5-pro";

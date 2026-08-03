@@ -42,7 +42,7 @@ VISION_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 - 对话也可使用 `OPENAI_API_KEY` / `OPENAI_MODEL` / `OPENAI_BASE_URL` 兼容其它供应商（优先级低于 `MIMO_*`）。
 - 提示词按上述模型调优，使用其它模型时回复风格可能略有差异。
 - 屏幕识别失败时只记录日志，不会把 `[vision ERROR]` 错误文本注入 Ω 上下文，聊天会正常降级继续。
-- 游戏内序章（制作人名单后）提供 AI 配置界面：每组模型可填写 API KEY、模型名、接入地址（URL）。默认推荐火山方舟 `doubao-seed-2-0-mini-260428`（视觉）与 MIMO `mimo-v2.5-pro`（对话）；提交后连同密钥写入 `game/.env.local` 并做连通性测试，成功后本次运行立即生效；失败会提示“请您换一个XX模型试一试”，可选择跳过。想用其它供应商（如 OpenAI/DeepSeek）时，直接在界面里填对应的接入地址与模型名即可。
+- 游戏内序章（制作人名单后）提供 AI 配置界面：每组模型可填写 API KEY、模型名、接入地址（URL）。默认推荐火山方舟 `doubao-seed-2-0-mini-260428`（视觉）与 MIMO `mimo-v2.5-pro`（对话）；提交后写入 Electron `userData`（`omega-ai-config.json`）持久化并做连通性测试，成功后本次运行立即生效；失败会提示“请您换一个XX模型试一试”，可选择跳过。想用其它供应商（如 OpenAI/DeepSeek）时，直接在界面里填对应的接入地址与模型名即可。`.env.local` 仅用于手动配置（运行时不写入，避免触发 Vite 开发服务器重启）。
 
 启动：
 
