@@ -242,6 +242,38 @@ export function installBrowserBridge() {
         }
         sessionLog.push({ speaker: "omega", text: response.reply, createdAt: new Date().toISOString() });
       return response as OmegaAIResponse & { state: OmegaState };
+      },
+      testConfig: async ({ visionApiKey, dialogueApiKey }: { visionApiKey: string; dialogueApiKey: string }) => {
+        const visionKey = visionApiKey.trim();
+        const dialogueKey = dialogueApiKey.trim();
+        // 浏览器调试模式：E2E（forceMock）走模拟结果；真实模式通过 Vite /api/ai/test 完成连通性测试
+        if (forceMockAI()) {
+          const visionFail = visionKey.includes("invalid");
+          const dialogueFail = dialogueKey.includes("invalid");
+          return {
+            visionOk: !visionFail,
+            dialogueOk: !dialogueFail,
+            visionError: visionFail ? "模拟：模型不适配" : undefined,
+            dialogueError: dialogueFail ? "模拟：模型不适配" : undefined
+          };
+        }
+        try {
+          const response = await fetch("/api/ai/test", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ visionApiKey: visionKey, dialogueApiKey: dialogueKey })
+          });
+          if (!response.ok) throw new Error("HTTP " + response.status);
+          return await response.json();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return {
+            visionOk: false,
+            dialogueOk: false,
+            visionError: message,
+            dialogueError: message
+          };
+        }
       }
     }
   };

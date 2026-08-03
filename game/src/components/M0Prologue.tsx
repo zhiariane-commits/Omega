@@ -21,6 +21,7 @@ type Props = {
 type ProloguePhase =
   | "black"
   | "splash"
+  | "ai_setup"
   | "intro"
   | "nickname"
   | "capsule_dialogue"
@@ -107,6 +108,12 @@ export default function M0Prologue({ state, updateState }: Props) {
   const [omegaExpression, setOmegaExpression] = useState<OmegaEmotion>("calm_negative");
   const [showCloseHint, setShowCloseHint] = useState(false);
   const [typewriterActive, setTypewriterActive] = useState(false);
+  /** AI 配置阶段状态：idle=待填写 testing=调试中 success=成功 error=失败可重试 */
+  const [aiSetupStatus, setAiSetupStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+  const [aiSetupError, setAiSetupError] = useState("");
+  const [aiSetupDetail, setAiSetupDetail] = useState("");
+  const [visionApiKey, setVisionApiKey] = useState("");
+  const [dialogueApiKey, setDialogueApiKey] = useState("");
 
   const lastOmegaBubbleRef = useRef<{ text: string; emotion: OmegaEmotion } | null>(null);
   const capsuleShellRef = useRef<HTMLDivElement>(null);
@@ -124,7 +131,7 @@ export default function M0Prologue({ state, updateState }: Props) {
     const t1 = setTimeout(() => setSplashFade("show"), FADE_DURATION);
     const t2 = setTimeout(() => {
       setSplashFade("out");
-      setTimeout(() => { setPhase("intro"); setSplashFade("in"); }, FADE_DURATION);
+      setTimeout(() => { setPhase("ai_setup"); setSplashFade("in"); }, FADE_DURATION);
     }, SPLASH_DURATION + FADE_DURATION);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [phase]);
@@ -177,6 +184,69 @@ export default function M0Prologue({ state, updateState }: Props) {
     setTypewriterActive(true);
   }, [nickname, updateState]);
 
+  // ---------- AI 配置成功 → 进入白字对话 ----------
+  useEffect(() => {
+    if (phase !== "ai_setup" || aiSetupStatus !== "success") return;
+    const t = setTimeout(() => {
+      setPhase("intro");
+      setDialogueIdx(0);
+      setTypewriterActive(false);
+      setAiSetupStatus("idle");
+      setAiSetupError("");
+      setAiSetupDetail("");
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [phase, aiSetupStatus]);
+
+  // ---------- AI 配置提交（视觉/对话模型连通性测试） ----------
+  const handleAiConfigSubmit = useCallback(async (e: FormEvent) => {
+    e.preventDefault();
+    const visionKey = visionApiKey.trim();
+    const dialogueKey = dialogueApiKey.trim();
+    if (!visionKey || !dialogueKey) {
+      setAiSetupError("请同时填写视觉模型与对话模型的 API KEY");
+      setAiSetupDetail("");
+      setAiSetupStatus("error");
+      return;
+    }
+    setAiSetupStatus("testing");
+    setAiSetupError("");
+    setAiSetupDetail("");
+    try {
+      const result = await window.omega.ai.testConfig({ visionApiKey: visionKey, dialogueApiKey: dialogueKey });
+      if (result.visionOk && result.dialogueOk) {
+        setAiSetupStatus("success");
+        return;
+      }
+      const errors: string[] = [];
+      const details: string[] = [];
+      if (!result.visionOk) {
+        errors.push("视觉模型测试失败，请您换一个视觉模型试一试");
+        if (result.visionError) details.push(`视觉模型：${result.visionError}`);
+      }
+      if (!result.dialogueOk) {
+        errors.push("对话模型测试失败，请您换一个对话模型试一试");
+        if (result.dialogueError) details.push(`对话模型：${result.dialogueError}`);
+      }
+      setAiSetupError(errors.join("\n"));
+      setAiSetupDetail(details.join("\n"));
+      setAiSetupStatus("error");
+    } catch (error) {
+      setAiSetupError(error instanceof Error ? error.message : String(error));
+      setAiSetupDetail("");
+      setAiSetupStatus("error");
+    }
+  }, [visionApiKey, dialogueApiKey]);
+
+  // ---------- 跳过 AI 配置，直接进入对话 ----------
+  const handleAiConfigSkip = useCallback(() => {
+    setAiSetupStatus("idle");
+    setAiSetupError("");
+    setAiSetupDetail("");
+    setPhase("intro");
+    setDialogueIdx(0);
+  }, []);
+
   // ---------- Finish prologue ----------
   const finishPrologue = useCallback(async () => {
     await updateState({
@@ -198,6 +268,67 @@ export default function M0Prologue({ state, updateState }: Props) {
         <div className={"m0-splash__content m0-splash__content--" + splashFade}>
           <p className="m0-splash__label">制作人</p>
           <p className="m0-splash__names">纸折鱼 &middot; Romanrose &middot; 合金 &middot; 固执</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (phase === "ai_setup") {
+    const aiInputDisabled = aiSetupStatus === "testing" || aiSetupStatus === "success";
+    return (
+      <main className="m0-intro m0-ai-setup">
+        <div className="m0-ai-setup__bubble">
+          <p className="m0-ai-setup__speaker"><span className="m0-intro__speaker">Ω</span></p>
+          <p className="m0-ai-setup__text">
+            你好，为了支持跨维度数据交流器，需要您提供您的API KEY，以便转写跨维度的数据信息
+          </p>
+          {aiSetupStatus === "testing" && (
+            <p className="m0-ai-setup__status m0-ai-setup__status--testing">好的，正在调试跨维度数据传输......</p>
+          )}
+          {aiSetupStatus === "success" && (
+            <p className="m0-ai-setup__status m0-ai-setup__status--success">加载成功，祝您和Ω相处愉快！</p>
+          )}
+          {aiSetupStatus === "error" && (
+            <div className="m0-ai-setup__status m0-ai-setup__status--error">
+              <p className="m0-ai-setup__error-text">{aiSetupError}</p>
+              {aiSetupDetail && <p className="m0-ai-setup__detail">{aiSetupDetail}</p>}
+            </div>
+          )}
+          <form className="m0-ai-setup__form" onSubmit={handleAiConfigSubmit}>
+            <label className="m0-ai-setup__field">
+              <span className="m0-ai-setup__label">视觉模型</span>
+              <input
+                className="m0-ai-setup__input"
+                type="password"
+                autoComplete="off"
+                value={visionApiKey}
+                onChange={(e) => setVisionApiKey(e.currentTarget.value)}
+                placeholder="推荐 doubao-seed-2-0-mini-260428"
+                disabled={aiInputDisabled}
+              />
+            </label>
+            <label className="m0-ai-setup__field">
+              <span className="m0-ai-setup__label">对话模型</span>
+              <input
+                className="m0-ai-setup__input"
+                type="password"
+                autoComplete="off"
+                value={dialogueApiKey}
+                onChange={(e) => setDialogueApiKey(e.currentTarget.value)}
+                placeholder="推荐 mimo-v2.5-pro"
+                disabled={aiInputDisabled}
+              />
+            </label>
+            <p className="m0-ai-setup__privacy">（您的API KEY将只用于您的本地游玩，我们承诺不会使用或泄露您的API KEY）</p>
+            <div className="m0-ai-setup__actions">
+              <button type="submit" className="m0-intro__continue m0-ai-setup__submit" disabled={aiInputDisabled}>
+                {aiSetupStatus === "testing" ? "调试中..." : "连接测试"}
+              </button>
+              <button type="button" className="m0-ai-setup__skip" onClick={handleAiConfigSkip} disabled={aiSetupStatus === "testing"}>
+                暂不配置，跳过
+              </button>
+            </div>
+          </form>
         </div>
       </main>
     );

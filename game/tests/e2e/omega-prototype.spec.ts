@@ -25,9 +25,20 @@ async function seedReadyState(page: import("@playwright/test").Page) {
 
 test.describe("Ω desktop pet functional prototype", () => {
   test("default browser route starts with the prologue from the document", async ({ page }) => {
+    // E2E 使用本地 mock：AI 配置阶段走模拟连通性测试
+    await page.addInitScript(() => {
+      window.localStorage.setItem("omega.browser.forceMock", "1");
+    });
     await page.goto("/");
 
-    // M0 序章：黑屏/制作人名单结束后进入白字对话
+    // M0 序章：黑屏/制作人名单结束后进入 AI 配置（API KEY 填写）
+    await expect(page.getByPlaceholder("推荐 doubao-seed-2-0-mini-260428")).toBeVisible({ timeout: 15_000 });
+    await page.getByPlaceholder("推荐 doubao-seed-2-0-mini-260428").fill("test-vision-key");
+    await page.getByPlaceholder("推荐 mimo-v2.5-pro").fill("test-dialogue-key");
+    await page.getByRole("button", { name: "连接测试" }).click();
+    await expect(page.getByText("加载成功，祝您和Ω相处愉快！")).toBeVisible();
+
+    // 成功后进入白字对话
     await expect(page.getByText("你好，能听到我说话吗？")).toBeVisible({ timeout: 15_000 });
     await page.getByRole("button", { name: "继续" }).click();
     await page.getByRole("button", { name: "你是谁？" }).click();
@@ -41,6 +52,31 @@ test.describe("Ω desktop pet functional prototype", () => {
 
     await expect(page.getByText("Ω 太空舱")).toBeVisible();
     await expect(page.locator("canvas")).toBeVisible();
+  });
+
+  test("prologue AI config can be skipped and stays offline-playable", async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem("omega.browser.forceMock", "1");
+    });
+    await page.goto("/");
+
+    await expect(page.getByPlaceholder("推荐 doubao-seed-2-0-mini-260428")).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: "暂不配置，跳过" }).click();
+    await expect(page.getByText("你好，能听到我说话吗？")).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("prologue AI config failure prompts to switch model", async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem("omega.browser.forceMock", "1");
+    });
+    await page.goto("/");
+
+    await expect(page.getByPlaceholder("推荐 doubao-seed-2-0-mini-260428")).toBeVisible({ timeout: 15_000 });
+    await page.getByPlaceholder("推荐 doubao-seed-2-0-mini-260428").fill("invalid-vision");
+    await page.getByPlaceholder("推荐 mimo-v2.5-pro").fill("invalid-dialogue");
+    await page.getByRole("button", { name: "连接测试" }).click();
+    await expect(page.getByText("视觉模型测试失败，请您换一个视觉模型试一试")).toBeVisible();
+    await expect(page.getByText("对话模型测试失败，请您换一个对话模型试一试")).toBeVisible();
   });
 
   test("floating window exposes document-defined root and task bubbles", async ({ page }) => {

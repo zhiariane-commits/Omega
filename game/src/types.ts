@@ -56,6 +56,14 @@ export type OmegaAIResponse = {
   screenContext?: string;
 };
 
+/** 序章 AI 配置功能测试结果 */
+export type AiConfigTestResult = {
+  visionOk: boolean;
+  dialogueOk: boolean;
+  visionError?: string;
+  dialogueError?: string;
+};
+
 export type OmegaState = {
   nickname: string;
   prologueDone: boolean;
@@ -137,6 +145,8 @@ declare global {
       };
       ai: {
         sendMessage: (payload: { text: string; includeScreenshot: boolean }) => Promise<OmegaAIResponse & { state: OmegaState }>;
+        /** 序章 AI 配置：把玩家输入的 API KEY 配置到环境并执行连通性测试 */
+        testConfig: (payload: { visionApiKey: string; dialogueApiKey: string }) => Promise<AiConfigTestResult>;
       };
       /** 提词器 Agent：根据 Ω 的发言生成玩家回复选项 */
       options?: {

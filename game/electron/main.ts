@@ -50,6 +50,14 @@ type OmegaAIResponse = {
   featureIntent?: FeatureIntent;
 };
 
+/** 序章 AI 配置功能测试结果 */
+type AiConfigTestResult = {
+  visionOk: boolean;
+  dialogueOk: boolean;
+  visionError?: string;
+  dialogueError?: string;
+};
+
 type OmegaStory = {
   id: string;
   title: string;
@@ -733,6 +741,119 @@ Omega: 因为这里能看到很多星星——比你们的夜空多得多。
     return null;
   }
 }
+
+/** 序章 AI 配置：视觉/对话模型连通性测试用的小图片（64x64 蓝色方块） */
+const AI_TEST_IMAGE_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAXElEQVR4nO3PAQkAIBAAsU9iMBMbyxjHw2AFNnPuW02gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYGaQE2gJlATqAnUBGoCNYHa+sAH1sABLUEOFXIAAAAASUVORK5CYII=";
+
+/** game/.env.local 的绝对路径（与启动时加载保持一致） */
+function envLocalFilePath() {
+  return path.join(__dirname, "..", ".env.local");
+}
+
+/** 把玩家输入的 API KEY 写入 game/.env.local，重启后仍然生效（文件已被 .gitignore 忽略）。 */
+function persistAiKeysToEnvFile(visionApiKey: string, dialogueApiKey: string) {
+  const envPath = envLocalFilePath();
+  try {
+    const lines = existsSync(envPath) ? readFileSync(envPath, "utf8").split(/\r?\n/) : [];
+    const keyEntries: Array<[string, string]> = [
+      ["MIMO_API_KEY", dialogueApiKey],
+      ["VISION_API_KEY", visionApiKey]
+    ];
+    // 未配置时补充可用的默认接入（模型名/Base URL），保证重启后聊天与屏幕识别可用
+    const defaultEntries: Array<[string, string]> = [
+      ["MIMO_MODEL", "mimo-v2.5-pro"],
+      ["MIMO_BASE_URL", "https://api.xiaomimimo.com/v1"],
+      ["VISION_MODEL", "doubao-seed-2-0-mini-260428"],
+      ["VISION_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"]
+    ];
+    const hasKey = (key: string) => lines.some((line) => {
+      const trimmed = line.trim();
+      return !trimmed.startsWith("#") && trimmed.split("=")[0]?.trim() === key;
+    });
+    const upsert = (key: string, value: string) => {
+      const idx = lines.findIndex((line) => {
+        const trimmed = line.trim();
+        return !trimmed.startsWith("#") && trimmed.split("=")[0]?.trim() === key;
+      });
+      if (idx >= 0) {
+        lines[idx] = `${key}=${value}`;
+      } else {
+        lines.push(`${key}=${value}`);
+      }
+    };
+    for (const [key, value] of keyEntries) upsert(key, value);
+    for (const [key, value] of defaultEntries) {
+      if (!hasKey(key)) lines.push(`${key}=${value}`);
+    }
+    writeFileSync(envPath, lines.join("\n") + "\n", "utf8");
+    console.log("[ai:testConfig] API KEY 已写入", envPath);
+  } catch (e) {
+    console.warn("[ai:testConfig] 写入 .env.local 失败（本次会话内仍生效）:", e);
+  }
+}
+
+/** 一次真实的 Chat Completions 连通性请求 */
+async function testChatCompletion(opts: {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+  messages: Array<Record<string, unknown>>;
+}): Promise<{ ok: boolean; error?: string }> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+  try {
+    const response = await fetch(`${opts.baseUrl}/chat/completions`, {
+      signal: controller.signal,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${opts.apiKey}`
+      },
+      body: JSON.stringify({ model: opts.model, messages: opts.messages, max_tokens: 32 })
+    });
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      return { ok: false, error: `HTTP ${response.status} ${errText.slice(0, 120)}` };
+    }
+    const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const content = data.choices?.[0]?.message?.content;
+    return { ok: Boolean(content && String(content).trim()) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/** 功能测试：视觉模型（发送一张小图片，验证模型具备视觉能力） */
+async function testVisionConnection(): Promise<{ ok: boolean; error?: string }> {
+  const apiKey = process.env.VISION_API_KEY ?? process.env.MIMO_API_KEY ?? process.env.OPENAI_API_KEY;
+  if (!apiKey) return { ok: false, error: "未配置 VISION_API_KEY" };
+  const baseUrl = (process.env.VISION_BASE_URL ?? process.env.MIMO_BASE_URL ?? process.env.OPENAI_BASE_URL ?? "https://ark.cn-beijing.volces.com/api/v3").replace(/\/$/, "");
+  const model = process.env.VISION_MODEL ?? "doubao-seed-2-0-mini-260428";
+  return testChatCompletion({
+    apiKey,
+    baseUrl,
+    model,
+    messages: [
+      { role: "user", content: [{ type: "text", text: "请用一句话描述这张图片的颜色" }, { type: "image_url", image_url: { url: AI_TEST_IMAGE_DATA_URL } }] }
+    ]
+  });
+}
+
+/** 功能测试：对话模型（普通文本对话） */
+async function testDialogueConnection(): Promise<{ ok: boolean; error?: string }> {
+  const apiKey = process.env.MIMO_API_KEY ?? process.env.OPENAI_API_KEY;
+  if (!apiKey) return { ok: false, error: "未配置 MIMO_API_KEY" };
+  const baseUrl = (process.env.MIMO_BASE_URL ?? process.env.OPENAI_BASE_URL ?? "https://api.xiaomimimo.com/v1").replace(/\/$/, "");
+  const model = process.env.MIMO_MODEL ?? process.env.OPENAI_MODEL ?? "mimo-v2.5-pro";
+  return testChatCompletion({
+    apiKey,
+    baseUrl,
+    model,
+    messages: [{ role: "user", content: "请回复两个字：成功" }]
+  });
+}
 loadLocalEnv();
 
 app.whenReady().then(async () => {
@@ -871,6 +992,33 @@ ipcMain.handle("ai:sendMessage", async (_event, payload: { text: string; include
   await savePersistedData();
   return { ...aiResponse, state: persisted.state, screenshotCaptured: Boolean(screenContext), screenContext: screenContext };
 });
+ipcMain.handle("ai:testConfig", async (_event, payload: { visionApiKey: string; dialogueApiKey: string }): Promise<AiConfigTestResult> => {
+  const visionKey = String(payload?.visionApiKey ?? "").trim();
+  const dialogueKey = String(payload?.dialogueApiKey ?? "").trim();
+  if (visionKey) process.env.VISION_API_KEY = visionKey;
+  if (dialogueKey) process.env.MIMO_API_KEY = dialogueKey;
+  if (visionKey || dialogueKey) persistAiKeysToEnvFile(visionKey, dialogueKey);
+
+  // 未配置时补充可用的默认接入（.env.local 已有的自定义值优先）
+  process.env.MIMO_BASE_URL ??= "https://api.xiaomimimo.com/v1";
+  process.env.MIMO_MODEL ??= "mimo-v2.5-pro";
+  process.env.VISION_BASE_URL ??= "https://ark.cn-beijing.volces.com/api/v3";
+  process.env.VISION_MODEL ??= "doubao-seed-2-0-mini-260428";
+
+  // 视觉 / 对话并行测试，分别返回结果，便于前端逐项提示
+  const [vision, dialogue] = await Promise.all([
+    testVisionConnection(),
+    testDialogueConnection()
+  ]);
+  console.log("[ai:testConfig] vision:", vision, "dialogue:", dialogue);
+  return {
+    visionOk: vision.ok,
+    dialogueOk: dialogue.ok,
+    visionError: vision.error,
+    dialogueError: dialogue.error
+  };
+});
+
 ipcMain.handle("options:generate", async (_event, payload: { omegaText: string }) => {
   console.log("[OptionsAgent IPC] received request, omegaText:", payload.omegaText?.slice(0, 50));
   const aiOptions = await cloudOmegaOptions(payload.omegaText).catch(() => null);

@@ -26,7 +26,9 @@ const omegaApi = {
   },
   ai: {
     sendMessage: (payload: { text: string; includeScreenshot: boolean }) =>
-      ipcRenderer.invoke("ai:sendMessage", payload)
+      ipcRenderer.invoke("ai:sendMessage", payload),
+    testConfig: (payload: { visionApiKey: string; dialogueApiKey: string }) =>
+      ipcRenderer.invoke("ai:testConfig", payload)
   },
   // 提词器 Agent：根据 Ω 的发言生成玩家回复选项
   options: {

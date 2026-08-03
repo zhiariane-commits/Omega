@@ -815,6 +815,154 @@
   transform: translateY(-1px);
 }
 
+/* ---------- AI 配置（序章：API KEY 填写） ---------- */
+.m0-ai-setup__bubble {
+  max-width: 520px;
+  width: calc(100vw - 64px);
+  padding: 36px 32px;
+  border: 1px solid rgba(25, 200, 185, 0.25);
+  border-radius: 16px;
+  background: rgba(10, 18, 25, 0.9);
+  box-shadow: 0 0 40px rgba(25, 200, 185, 0.08), inset 0 0 24px rgba(25, 200, 185, 0.04);
+  text-align: center;
+  animation: m0FadeIn 0.5s ease-out;
+}
+
+.m0-ai-setup__speaker {
+  margin: 0 0 12px;
+}
+
+.m0-ai-setup__text {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 16px;
+  line-height: 1.8;
+  margin: 0 0 16px;
+  letter-spacing: 1px;
+}
+
+.m0-ai-setup__status {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.7;
+  letter-spacing: 1px;
+}
+
+.m0-ai-setup__status--testing {
+  color: rgba(25, 200, 185, 0.9);
+}
+
+.m0-ai-setup__status--success {
+  color: #3ddc97;
+}
+
+.m0-ai-setup__status--error {
+  color: #ff6b6b;
+}
+
+.m0-ai-setup__error-text {
+  margin: 0 0 4px;
+  white-space: pre-line;
+}
+
+.m0-ai-setup__detail {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.m0-ai-setup__form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.m0-ai-setup__field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+}
+
+.m0-ai-setup__label {
+  color: rgba(25, 200, 185, 0.9);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.m0-ai-setup__input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+  font-weight: 400;
+}
+
+.m0-ai-setup__input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.m0-ai-setup__input:focus {
+  border-color: #19c8b9;
+}
+
+.m0-ai-setup__input:disabled {
+  opacity: 0.55;
+}
+
+.m0-ai-setup__privacy {
+  margin: 2px 0 0;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.m0-ai-setup__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.m0-ai-setup__submit {
+  margin-top: 0;
+}
+
+.m0-ai-setup__submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.m0-ai-setup__skip {
+  padding: 10px 8px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 13px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: color 0.2s ease;
+}
+
+.m0-ai-setup__skip:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.m0-ai-setup__skip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ---------- Capsule dialogue overlay ---------- */
 .m0-capsule-overlay {
   position: absolute;
