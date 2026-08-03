@@ -176,9 +176,9 @@ export function CapsuleScene({
           if (abortIfStale()) return;
           const renovSprite = new Sprite(renovatingTexture);
           renovSprite.anchor.set(0.5);
-          const renovScale = (app.screen.height * 0.28) / renovatingTexture.height;
+          const renovScale = ((app.screen.height * 0.28) / renovatingTexture.height) * 1.2;
           renovSprite.scale.set(renovScale);
-          renovSprite.position.set(app.screen.width * 0.8, app.screen.height * 0.5);
+          renovSprite.position.set(app.screen.width * 0.8 - 300, app.screen.height * 0.5);
           renovSprite.zIndex = 2;
           app.stage.addChild(renovSprite);
         } catch (err) {
@@ -668,7 +668,7 @@ function drawUIOverlay(
   }
 }
 
-function drawOmega(emotion: OmegaEmotion, texture: Texture | undefined): { root: Container; face: Graphics } {
+export function drawOmega(emotion: OmegaEmotion, texture: Texture | undefined): { root: Container; face: Graphics } {
   const root = new Container();
   if (texture) {
     const sprite = new Sprite(texture);
@@ -714,7 +714,7 @@ function drawOmega(emotion: OmegaEmotion, texture: Texture | undefined): { root:
   return { root, face };
 }
 /** Draw or update face graphics (eyes + brows + mouth) based on emotion. */
-function drawFaceGraphics(face: Graphics, emotion: OmegaEmotion) {
+export function drawFaceGraphics(face: Graphics, emotion: OmegaEmotion) {
   face.clear();
   const dark = 0x5d4037;
   const warm = 0x9a835a;

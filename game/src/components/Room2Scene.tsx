@@ -1,4 +1,5 @@
 ﻿import { Application, BaseTexture, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
+import { drawFaceGraphics, drawOmega } from "./CapsuleScene";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { OmegaEmotion, OmegaState } from "../types";
 import { ALL_RECIPES } from "../systems/crafting";
@@ -168,11 +169,8 @@ export default function Room2Scene({
       } catch {
         /* fallback */
       }
-      const player = drawOmegaFallback(emotion, omegaTexture);
-      const faceG = new Graphics();
-      drawFaceGraphicsRoom2(faceG, emotion);
-      faceRef.current = faceG;
-      player.addChild(faceG);
+      const { root: player, face: initialFace } = drawOmega(emotion, omegaTexture);
+      faceRef.current = initialFace;
       player.position.set(positionRef.current.x, positionRef.current.y);
       playerRef.current = player;
       app.stage.addChild(player);
@@ -236,7 +234,11 @@ export default function Room2Scene({
           pos.x = Math.max(150, Math.min(app.screen.width - 150, pos.x));
           pos.y = Math.max(380, Math.min(490, pos.y));
           player.position.set(pos.x, pos.y);
-          player.scale.set(0.8 + (pos.y - 380) / 600);
+          // Ω 与太空舱内等大：同一套基准缩放 + 景深公式
+          const omegaTargetHeight = app.screen.height * 0.75;
+          const omegaBaseScale = omegaTargetHeight / 257;
+          const depthScale = 0.95 + 0.1 * (pos.y - 380) / 110;
+          player.scale.set(omegaBaseScale * depthScale);
 
           // Door proximity（默认放在左下可移动区域内，参数后续可微调）
           const doorDist = Math.hypot(pos.x - 90, pos.y - app.screen.height * 0.6);
@@ -259,7 +261,7 @@ export default function Room2Scene({
   // --- Reactive face updates when emotion changes ---
   useEffect(() => {
     if (faceRef.current) {
-      drawFaceGraphicsRoom2(faceRef.current, emotion);
+      drawFaceGraphics(faceRef.current, emotion);
     }
   }, [emotion]);
 
@@ -318,6 +320,20 @@ export default function Room2Scene({
   return (
     <section className="scene-wrap">
       <div ref={hostRef} className="pixi-host" />
+
+      {/* 左侧居中常驻：回到主舱（与太空舱交互气泡同尺寸样式，锚点负责定位） */}
+      <div
+        className="capsule-bubble-anchor"
+        style={{ left: 222, top: "50%", zIndex: 20 }}
+      >
+        <button
+          type="button"
+          className="capsule-bubble"
+          onClick={onBackToMainRoom}
+        >
+          {'\u56DE\u5230\u4E3B\u8231'}
+        </button>
+      </div>
 
       {/* Door back button */}
       {!placing && nearDoor && (
@@ -448,62 +464,3 @@ function loadImageAsTexture(_renderer: any, url: string): Promise<Texture> {
     img.src = url;
   });
 }
-
-function drawFaceGraphicsRoom2(face: Graphics, emotion: OmegaEmotion) {
-  face.clear();
-  const eyeColor = emotion === "sad" || emotion === "down" || emotion === "angry" || emotion === "fearful" || emotion === "calm_negative" ? 0x9a835a : 0x5d4037;
-  face.beginFill(eyeColor);
-  face.drawRoundedRect(-18, -8, 10, 4, 2);
-  face.drawRoundedRect(8, -8, 10, 4, 2);
-  face.endFill();
-  if (emotion === "happy" || emotion === "proud") {
-    face.lineStyle(2, 0x5d4037);
-    face.arc(0, 8, 14, 0, Math.PI);
-    face.lineStyle(0);
-  } else if (emotion === "sad") {
-    face.lineStyle(2, 0x9a835a);
-    face.arc(0, 20, 11, Math.PI, Math.PI * 2);
-    face.lineStyle(0);
-  } else {
-    face.lineStyle(2, 0x5d4037);
-    face.moveTo(-10, 14);
-    face.lineTo(10, 14);
-    face.lineStyle(0);
-  }
-}
-
-function drawOmegaFallback(emotion: OmegaEmotion, texture?: Texture) {
-  const root = new Container();
-  if (texture) {
-    const sprite = new Sprite(texture);
-    sprite.anchor.set(0.5, 1);
-    sprite.width = 130;
-    sprite.height = 218;
-    sprite.y = 130;
-    root.addChild(sprite);
-  } else {
-    const body = new Graphics();
-    body.beginFill(0xfffaf0);
-    body.drawRoundedRect(-34, 29, 68, 101, 26);
-    body.endFill();
-    body.lineStyle(2, 0x19c8b9);
-    body.drawRoundedRect(-34, 29, 68, 101, 26);
-    body.lineStyle(0);
-    root.addChild(body);
-    const head = new Graphics();
-    head.beginFill(0xfffdf4);
-    head.drawCircle(0, 0, 42);
-    head.endFill();
-    head.lineStyle(2, 0xdfd4be);
-    head.drawCircle(0, 0, 42);
-    head.lineStyle(0);
-    root.addChild(head);
-  }
-  const glow = new Graphics();
-  glow.beginFill(0x19c8b9, 0.15);
-  glow.drawEllipse(0, 120, 49, 10);
-  glow.endFill();
-  root.addChild(glow);
-  return root;
-}
-

@@ -417,5 +417,11 @@ test.describe("Ω desktop pet functional prototype", () => {
     await page.getByRole("button", { name: "扩建区", exact: true }).first().click();
     await expect(page.getByText("扩建空间")).toBeVisible();
     expect(pageErrors).toEqual([]);
+
+    // 顶部常驻「回到主舱」按钮：点击后返回太空舱
+    const backTop = page.getByRole("button", { name: "回到主舱" });
+    await expect(backTop).toBeVisible();
+    await backTop.click();
+    await expect(page.getByText("Ω 太空舱")).toBeVisible();
   });
 });
