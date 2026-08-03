@@ -20,7 +20,7 @@
  */
 
 import type { OmegaIdleAction, OmegaState } from "../types";
-import { isM2CleanPoolActive } from "./storyMilestones";
+import { isM2CleanPoolActive, isM5ConstructPoolActive } from "./storyMilestones";
 
 /** 单个行为的权重配置 */
 type WeightEntry = {
@@ -162,9 +162,10 @@ export function getAffectionLevel(affinity: number): "low" | "medium" | "high" {
 
 function buildWeights(state: OmegaState): WeightEntry[] {
   const { mood, unlocked } = state;
-  const hasConstruction = unlocked.construction;
   // M2 清扫池生效窗口：第一阶段（提醒打扫）完成后 ~ 第二阶段（清洁完成）完成前
   const m2Cleaning = isM2CleanPoolActive(state);
+  // M5 建造池生效窗口：扩建相关合成全部完成后（动工） ~ 下次启动完成 M5 前
+  const m5Constructing = isM5ConstructPoolActive(state);
 
   // ① 专注模式池：开启专注模式后使用（功能状态，动作模组暂未制作 → 统一占位跟随鼠标）
   if (state.currentMode === "focus") {
@@ -186,7 +187,7 @@ function buildWeights(state: OmegaState): WeightEntry[] {
   }
 
   // ② 建造/清扫池：M2 清扫窗口（第一阶段完成后 ~ 第二阶段完成前）或 M5 建造持续期间
-  if (hasConstruction || m2Cleaning) {
+  if (m2Cleaning || m5Constructing) {
     return buildConstructionPool(state);
   }
 

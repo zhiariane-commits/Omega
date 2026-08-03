@@ -101,73 +101,56 @@ export default function Room2Scene({
       appRef.current = app;
       host.appendChild(app.view as unknown as Node);
 
-      // Background
-      const bg = new Graphics();
-      bg.beginFill(0x080e14);
-      bg.drawRect(0, 0, app.screen.width, app.screen.height);
-      bg.endFill();
-      app.stage.addChild(bg);
-
-      // Floor
-      const floor = new Graphics();
-      const wallBottom = app.screen.height * 0.5;
-      floor.beginFill(0x0f1a24);
-      floor.drawRect(0, wallBottom, app.screen.width, app.screen.height - wallBottom);
-      floor.endFill();
-      floor.lineStyle(1, 0x1a2a3a, 0.2);
-      for (let y = wallBottom; y < app.screen.height; y += 40) {
-        floor.moveTo(0, y);
-        floor.lineTo(app.screen.width, y);
+      // Background：M5 完成后使用「新房间.png」全屏贴图（失败时回退绘制背景）
+      let bgLoaded = false;
+      try {
+        const bgTexture = await loadImageAsTexture(
+          app.renderer as any,
+          "/capusle/room2-bg.png"
+        );
+        if (disposed) return;
+        const bgSprite = new Sprite(bgTexture);
+        bgSprite.width = app.screen.width;
+        bgSprite.height = app.screen.height;
+        app.stage.addChildAt(bgSprite, 0);
+        bgLoaded = true;
+      } catch {
+        /* fallback below */
       }
-      for (let x = 0; x < app.screen.width; x += 60) {
-        floor.moveTo(x, wallBottom);
-        floor.lineTo(x, app.screen.height);
+      if (!bgLoaded) {
+        const bg = new Graphics();
+        bg.beginFill(0x080e14);
+        bg.drawRect(0, 0, app.screen.width, app.screen.height);
+        bg.endFill();
+        app.stage.addChild(bg);
+        const floor = new Graphics();
+        const wallBottom = app.screen.height * 0.5;
+        floor.beginFill(0x0f1a24);
+        floor.drawRect(0, wallBottom, app.screen.width, app.screen.height - wallBottom);
+        floor.endFill();
+        floor.lineStyle(1, 0x1a2a3a, 0.2);
+        for (let y = wallBottom; y < app.screen.height; y += 40) {
+          floor.moveTo(0, y);
+          floor.lineTo(app.screen.width, y);
+        }
+        for (let x = 0; x < app.screen.width; x += 60) {
+          floor.moveTo(x, wallBottom);
+          floor.lineTo(x, app.screen.height);
+        }
+        floor.lineStyle(0);
+        app.stage.addChild(floor);
+        const walls = new Graphics();
+        walls.beginFill(0x121e2a);
+        walls.drawRect(0, 60, app.screen.width, app.screen.height * 0.5 - 60);
+        walls.endFill();
+        walls.lineStyle(1, 0x1a2a3a, 0.15);
+        for (let y = 60; y < app.screen.height * 0.5; y += 50) {
+          walls.moveTo(0, y);
+          walls.lineTo(app.screen.width, y);
+        }
+        walls.lineStyle(0);
+        app.stage.addChild(walls);
       }
-      floor.lineStyle(0);
-      app.stage.addChild(floor);
-
-      // Walls
-      const walls = new Graphics();
-      walls.beginFill(0x121e2a);
-      walls.drawRect(0, 60, app.screen.width, app.screen.height * 0.5 - 60);
-      walls.endFill();
-      walls.lineStyle(1, 0x1a2a3a, 0.15);
-      for (let y = 60; y < app.screen.height * 0.5; y += 50) {
-        walls.moveTo(0, y);
-        walls.lineTo(app.screen.width, y);
-      }
-      walls.lineStyle(0);
-      app.stage.addChild(walls);
-
-      // Window with stars
-      const win = new Graphics();
-      const winX = app.screen.width * 0.65;
-      const winY = app.screen.height * 0.15;
-      win.beginFill(0x0a1720);
-      win.drawRect(winX, winY, 120, 80);
-      win.endFill();
-      win.lineStyle(2, 0x1a3a4a);
-      win.drawRect(winX, winY, 120, 80);
-      win.lineStyle(0);
-      win.beginFill(0xffffff, 0.6);
-      win.drawCircle(winX + 30, winY + 20, 1.5);
-      win.drawCircle(winX + 80, winY + 40, 1);
-      win.drawCircle(winX + 50, winY + 50, 1.2);
-      win.endFill();
-      app.stage.addChild(win);
-
-      // Door
-      const doorG = new Graphics();
-      doorG.beginFill(0x1a2a3a);
-      doorG.drawRect(40, app.screen.height * 0.5 - 80, 50, 90);
-      doorG.endFill();
-      doorG.lineStyle(2, 0x2a4a5a);
-      doorG.drawRect(40, app.screen.height * 0.5 - 80, 50, 90);
-      doorG.lineStyle(0);
-      doorG.beginFill(0x00ccff, 0.3);
-      doorG.drawCircle(78, app.screen.height * 0.5 - 40, 3);
-      doorG.endFill();
-      app.stage.addChild(doorG);
 
       // Furniture layer
       const decorLayer = new Container();
@@ -249,13 +232,14 @@ export default function Room2Scene({
           if (keysRef.current.has("s")) pos.y += speed * 0.8;
           if (keysRef.current.has("a")) pos.x -= speed;
           if (keysRef.current.has("d")) pos.x += speed;
-          pos.x = Math.max(60, Math.min(app.screen.width - 60, pos.x));
-          pos.y = Math.max(200, Math.min(app.screen.height - 60, pos.y));
+          // 移动范围与太空舱内一致（去除桌子的梯形格挡）：X 150~宽-150，Y 380~490
+          pos.x = Math.max(150, Math.min(app.screen.width - 150, pos.x));
+          pos.y = Math.max(380, Math.min(490, pos.y));
           player.position.set(pos.x, pos.y);
-          player.scale.set(0.6 + (pos.y - 200) / 800);
+          player.scale.set(0.8 + (pos.y - 380) / 600);
 
-          // Door proximity
-          const doorDist = Math.hypot(pos.x - 80, pos.y - app.screen.height * 0.34);
+          // Door proximity（默认放在左下可移动区域内，参数后续可微调）
+          const doorDist = Math.hypot(pos.x - 90, pos.y - app.screen.height * 0.6);
           setNearDoor(doorDist < 120);
         }
       });

@@ -14,6 +14,7 @@ export const ALL_MILESTONES = [
   "m2_clean_capsule",
   "m3_show_world",
   "m4_childhood_story",
+  "m5_craft_asked",
   "m5_construction",
   "m6_game_unlock",
   "m7_writing",
@@ -109,6 +110,25 @@ export function isM2CleanPoolActive(state: OmegaState): boolean {
   return (
     completed.has("m2_clean_asked") &&
     !completed.has("m2_clean_capsule")
+  );
+}
+
+/* ---------- 里程碑 5: 扩建（合成机解锁 → 合成完成 → 建造 → 下次启动完成） ---------- */
+
+/** M5 阶段1：扩建图纸解锁后的悬浮窗提醒气泡文案 */
+export const M5_CRAFT_REMINDER = "合成机似乎解锁了新的配方！";
+
+/** M5 阶段1→2 之间：扩建相关合成全部完成后的悬浮窗提示气泡文案 */
+export const M5_CONSTRUCT_HINT = "Ω好像开始在太空舱里动工了……";
+
+/** M5 阶段2：下次启动时的完成气泡文案 */
+export const M5_CONSTRUCT_DONE = "扩建完成了！";
+
+/** M5 建造池是否生效：扩建相关合成全部完成（动工）后、下次启动完成前 */
+export function isM5ConstructPoolActive(state: OmegaState): boolean {
+  return (
+    state.m5ConstructStartAt != null &&
+    !(state.completedMilestones ?? []).includes("m5_construction")
   );
 }
 
@@ -209,10 +229,28 @@ export function checkMilestones(state: OmegaState): MilestoneCheck {
     };
   }
 
-  if (!completed.has("m5_construction") && mood >= 300 && unlocked.construction) {
+  // M5 阶段1：扩建图纸已购买（解锁扩建，图纸本身需心境 300）→ 悬浮窗气泡提示合成机解锁新配方
+  if (
+    !completed.has("m5_craft_asked") &&
+    !completed.has("m5_construction") &&
+    unlocked.construction &&
+    state.m5ConstructStartAt == null
+  ) {
+    return {
+      triggered: "m5_craft_asked",
+      bubbleText: M5_CRAFT_REMINDER,
+    };
+  }
+
+  // M5 阶段2：扩建相关合成全部完成且跨会话（关闭游戏后再启动）→ 完成扩建
+  if (
+    !completed.has("m5_construction") &&
+    state.m5ConstructStartAt != null &&
+    state.m5ConstructStartAt < (state.sessionStartTime ?? 0)
+  ) {
     return {
       triggered: "m5_construction",
-      bubbleText: "这些图纸……也许可以派上用场。",
+      bubbleText: M5_CONSTRUCT_DONE,
     };
   }
 
@@ -267,9 +305,14 @@ export function applyMilestoneReward(
       partial.affinity = (currentState.affinity ?? 0) + 2;
       partial.emotion = "calm_positive";
       break;
+    case "m5_craft_asked":
+      partial.emotion = "expectant";
+      break;
     case "m5_construction":
       partial.mood = Math.min(1000, (currentState.mood ?? 0) + 10);
       partial.emotion = "proud";
+      partial.room2Unlocked = true;
+      partial.m5ConstructStartAt = null;
       break;
     case "m7_writing":
       partial.mood = Math.min(1000, (currentState.mood ?? 0) + 20);

@@ -20,6 +20,8 @@ type Props = {
   mood: number;
   equippedDecorations?: Record<string, string>;
   capsuleBackgroundDirty?: boolean;
+  /** M5 建造中：太空舱右侧正中间显示「装修中」贴图 */
+  renovating?: boolean;
 };
 
 type Position = { x: number; y: number };
@@ -27,10 +29,12 @@ type Position = { x: number; y: number };
 /** 太空舱三个交互气泡的坐标（相对屏幕宽高，0~1 表示比例）。
  * 数值基于太空舱窗口 1080×720 计算：书桌下移 200px、合成机右移 300px、书橱左移 300px。
  * 需要微调时直接改算式里的像素数字即可（如 200 / 720 中的 200）。 */
-const CAPSULE_BUBBLE_POS: Record<"desk" | "craft" | "shelf", Position> = {
+const CAPSULE_BUBBLE_POS: Record<"desk" | "craft" | "shelf" | "expand", Position> = {
   desk: { x: 0.5, y: 0.5 + 200 / 720 },
   craft: { x: 0.5 + 300 / 1080, y: 0.58 },
   shelf: { x: 0.5 - 300 / 1080, y: 0.42 },
+  // 扩建区气泡（M5 完成后出现），位置可后续微调
+  expand: { x: 0.5 + 340 / 1080, y: 0.78 },
 };
 
 export function CapsuleScene({
@@ -48,6 +52,7 @@ export function CapsuleScene({
   mood,
   equippedDecorations = {},
   capsuleBackgroundDirty = true,
+  renovating = false,
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<Application | null>(null);
@@ -160,6 +165,26 @@ export function CapsuleScene({
       } catch (err) {
         if (abortIfStale()) return;
         console.warn("Capsule table load failed", err);
+      }
+      // --- Renovating overlay（M5 建造中：右侧正中间，参数后续可微调） ---
+      if (renovating) {
+        try {
+          const renovatingTexture = await loadImageAsTexture(
+            app.renderer as unknown as import("pixi.js").Renderer,
+            "/capusle/renovating.png"
+          );
+          if (abortIfStale()) return;
+          const renovSprite = new Sprite(renovatingTexture);
+          renovSprite.anchor.set(0.5);
+          const renovScale = (app.screen.height * 0.28) / renovatingTexture.height;
+          renovSprite.scale.set(renovScale);
+          renovSprite.position.set(app.screen.width * 0.8, app.screen.height * 0.5);
+          renovSprite.zIndex = 2;
+          app.stage.addChild(renovSprite);
+        } catch (err) {
+          if (abortIfStale()) return;
+          console.warn("Capsule renovating image load failed", err);
+        }
       }
       // --- Decoration overlays ---
       const decorLayer = new Container();
@@ -353,7 +378,7 @@ export function CapsuleScene({
       }
       hostElement.replaceChildren();
     };
-  }, [prologueDone, lowMood, mood, room2Unlocked, equippedDecorations, capsuleBackgroundDirty]);
+  }, [prologueDone, lowMood, mood, room2Unlocked, equippedDecorations, capsuleBackgroundDirty, renovating]);
 
   // Reactive face updates when emotion changes
   useEffect(() => {
@@ -439,6 +464,23 @@ export function CapsuleScene({
               书架
             </button>
           </div>
+          {room2Unlocked && onRoom2Door && (
+            <div
+              className="capsule-bubble-anchor"
+              style={{ left: `${CAPSULE_BUBBLE_POS.expand.x * 100}%`, top: `${CAPSULE_BUBBLE_POS.expand.y * 100}%` }}
+            >
+              <button
+                type="button"
+                className="capsule-bubble"
+                onClick={() => {
+                  setActiveBubble(null);
+                  onRoom2Door();
+                }}
+              >
+                扩建区
+              </button>
+            </div>
+          )}
         </div>
       )}
 

@@ -105,6 +105,7 @@ type OmegaState = {
   lastGreetingTime: number;
   pendingMilestoneEvent: string | null;
   m2CleanAgreedAt: number | null;
+  m5ConstructStartAt: number | null;
   purchasedItems: string[];
   capsuleDecoration: Record<string, string>;
   equippedDecorations: Record<string, string>;
@@ -156,6 +157,7 @@ const defaultState: OmegaState = {
   lastGreetingTime: 0,
   pendingMilestoneEvent: null,
   m2CleanAgreedAt: null,
+  m5ConstructStartAt: null,
   purchasedItems: [],
   capsuleDecoration: {},
   equippedDecorations: {},

@@ -286,4 +286,72 @@ test.describe("Ω desktop pet functional prototype", () => {
     await panel.getByRole("button", { name: "已合成" }).click();
     await expect(panel.getByText("一整套新风格合成机")).toBeVisible();
   });
+
+  test("M5 construction flow: crafting unlock bubble, build until next launch, then expansion zone", async ({ page }) => {
+    // 前置：M1/M2/M3/M4 已完成、心境 300、扩建图纸已购买（unlocked.construction）
+    // 仅首次进入写入种子状态；reload 时保留游戏内已保存的进度（M5 下次启动判定）
+    await page.addInitScript((state) => {
+      window.localStorage.setItem("omega.browser.forceMock", "1");
+      if (!window.localStorage.getItem("omega.browser.state")) {
+        window.localStorage.setItem("omega.browser.state", JSON.stringify(state));
+      }
+      window.localStorage.removeItem("omega.browser.memories");
+    }, {
+      ...readyState,
+      mood: 300,
+      unlocked: {
+        activeGreeting: true,
+        cleanCapsule: false,
+        game: false,
+        writing: false,
+        bookshelf: false,
+        construction: true,
+        gardening: false,
+      },
+      completedMilestones: ["m1_first_greeting", "m2_clean_asked", "m2_clean_capsule", "m3_show_world", "m4_childhood_story"],
+    });
+    await page.goto("/?view=floating");
+
+    // M5 阶段1：条件满足 → 悬浮窗气泡提示合成机解锁新配方
+    await expect(page.locator(".milestone-bubble")).toContainText("合成机似乎解锁了新的配方！");
+    await page.locator(".milestone-bubble__dismiss").click();
+
+    // 依次合成扩建图纸 / 扩建工具 / 扩建材料
+    await page.getByRole("button", { name: "Ω" }).click();
+    await page.getByRole("button", { name: "事项" }).click();
+    await page.getByRole("button", { name: "合成机" }).click();
+    const panel = page.locator(".crafting-panel");
+    await expect(panel).toBeVisible();
+
+    await panel.getByRole("button", { name: "图纸" }).click();
+    await expect(panel.getByText("太空舱扩建图纸")).toBeVisible();
+    await panel.getByRole("button", { name: "合成", exact: true }).click();
+
+    await panel.getByRole("button", { name: "材料" }).click();
+    await expect(panel.getByText("扩建工具")).toBeVisible();
+    await panel.getByRole("button", { name: "合成", exact: true }).first().click();
+    await panel.getByRole("button", { name: "合成", exact: true }).click();
+
+    // 全部合成完成 → 进入建造阶段：悬浮窗提示 + 状态记录动工时间戳
+    await panel.getByRole("button", { name: "✕" }).click();
+    await expect(page.locator(".milestone-bubble")).toContainText("Ω好像开始在太空舱里动工了");
+    await page.locator(".milestone-bubble__dismiss").click();
+    const built = await page.evaluate(() => JSON.parse(localStorage.getItem("omega.browser.state") ?? "{}"));
+    expect(built.m5ConstructStartAt).toBeGreaterThan(0);
+    expect(built.completedMilestones).toContain("m5_craft_asked");
+
+    // 模拟下次启动：刷新页面 → M5 完成
+    await page.reload();
+    await expect(page.locator(".milestone-bubble")).toContainText("扩建完成了！");
+    await page.locator(".milestone-bubble__dismiss").click();
+    const done = await page.evaluate(() => JSON.parse(localStorage.getItem("omega.browser.state") ?? "{}"));
+    expect(done.completedMilestones).toContain("m5_construction");
+    expect(done.room2Unlocked).toBe(true);
+
+    // M5 完成后：太空舱新增「扩建区」气泡
+    await page.getByRole("button", { name: "Ω" }).click();
+    await page.getByRole("button", { name: "太空舱" }).click();
+    await expect(page.getByText("Ω 太空舱")).toBeVisible();
+    await expect(page.getByRole("button", { name: "扩建区", exact: true }).first()).toBeVisible();
+  });
 });

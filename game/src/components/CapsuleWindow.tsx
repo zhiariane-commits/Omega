@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { lazy, Suspense } from "react";
 import type { OmegaState } from "../types";
 import { CapsuleScene } from "./CapsuleScene";
-import { getM2CleanSteps, isM2CleanStoryPending, M2_CLEAN_HINT } from "../systems/storyMilestones";
+import { getM2CleanSteps, isM2CleanStoryPending, isM5ConstructPoolActive, M2_CLEAN_HINT } from "../systems/storyMilestones";
 import CapsuleStoryDialogue from "./CapsuleStoryDialogue";
 import DecorationPanel from "./DecorationPanel";
 import BookshelfPanel from "./BookshelfPanel";
@@ -26,6 +26,8 @@ export function CapsuleWindow({ state, updateState }: Props) {
   const canDecorate = state.prologueDone && !sleeping;
   // M2 清扫剧情：已提醒（或提醒气泡仍挂起）且尚未同意 → 进入剧情模式
   const m2StoryPending = isM2CleanStoryPending(state);
+  // M5 建造中：扩建相关合成全部完成后（动工）~ 下次启动完成 M5 前，太空舱显示「装修中」
+  const m5Constructing = isM5ConstructPoolActive(state);
 
   const lowMoodGuide = !state.prologueDone ? false : state.mood < 15;
 
@@ -134,6 +136,7 @@ export function CapsuleWindow({ state, updateState }: Props) {
             capsuleBackgroundDirty={state.capsuleBackgroundDirty}
             lowMood={state.mood < 15}
             room2Unlocked={state.room2Unlocked ?? false}
+            renovating={m5Constructing}
             onShelfInteract={() => setBookshelfShow(true)}
             onRoom2Door={() => { setInRoom2(true); }}
           />
@@ -194,6 +197,7 @@ export function CapsuleWindow({ state, updateState }: Props) {
           onBedInteract={lowMoodGuide ? handleBedRest : undefined}
           lowMood={state.mood < 15}
           room2Unlocked={state.room2Unlocked ?? false}
+          renovating={m5Constructing}
           onShelfInteract={() => setBookshelfShow(true)}
           onRoom2Door={() => { setInRoom2(true); }}
           onOpenCrafting={() => setCraftingShow(true)}

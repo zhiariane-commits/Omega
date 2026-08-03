@@ -1123,7 +1123,8 @@ function DevPanel({
     m2_clean_capsule: "M2 清洁太空舱 (下次启动完成)",
     m3_show_world: "M3 展示世界 (mood >= 100, affinity >= 50)",
     m4_childhood_story: "M4 童年故事 (mood >= 200, affinity > 50)",
-    m5_construction: "M5 建造 (mood >= 300, unlocked.construction)",
+    m5_craft_asked: "M5 图纸解锁 (已购买图纸，等待合成扩建内容)",
+    m5_construction: "M5 扩建完成 (合成全部完成，下次启动完成)",
     m6_game_unlock: "M6 游戏解锁",
     m7_writing: "M7 写作 (mood > 500, affinity > 50)",
   };
@@ -1343,6 +1344,7 @@ function DevPanel({
                   lastGreetingTime: 0,
                   pendingMilestoneEvent: null,
                   m2CleanAgreedAt: null,
+                  m5ConstructStartAt: null,
                   purchasedItems: [],
                   capsuleDecoration: {},
                   equippedDecorations: {},

@@ -34,6 +34,7 @@ const defaultState: OmegaState = {
   lastGreetingTime: 0,
   pendingMilestoneEvent: null,
   m2CleanAgreedAt: null,
+  m5ConstructStartAt: null,
 };
 
 const stateKey = "omega.browser.state";
@@ -48,13 +49,19 @@ function loadState(): OmegaState {
     return {
       ...defaultState,
       ...parsed,
-      unlocked: { ...defaultState.unlocked, ...parsed.unlocked },
-      // 每次进入视为新会话，M2 阶段2据此判定「关闭游戏后再启动」
-      sessionStartTime: Date.now()
+      unlocked: { ...defaultState.unlocked, ...parsed.unlocked }
     };
   } catch {
     return defaultState;
   }
+}
+
+/** 页面加载 = 一次新会话：刷新并保存 sessionStartTime，供 M2/M5「下次启动完成」判定。
+ * updateOmegaState 保持会话内 sessionStartTime 不变，与 Electron 主进程行为一致。 */
+function loadStateForSession(): OmegaState {
+  const state = { ...loadState(), sessionStartTime: Date.now() };
+  saveState(state);
+  return state;
 }
 
 function saveState(state: OmegaState) {
@@ -195,7 +202,7 @@ export function installBrowserBridge() {
       quit: async () => undefined
     },
     state: {
-      getOmegaState: async () => loadState(),
+      getOmegaState: async () => loadStateForSession(),
       updateOmegaState: async (partialState: unknown) => {
         const partial = partialState as Partial<OmegaState>;
         const current = loadState();

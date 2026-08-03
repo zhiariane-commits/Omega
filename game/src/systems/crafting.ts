@@ -6,6 +6,7 @@
  */
 
 import type { OmegaState } from "../types";
+import { M5_CONSTRUCT_HINT } from "./storyMilestones";
 
 /** 物品类别 */
 export type CraftCategory =
@@ -56,6 +57,18 @@ function hasMilestone(state: OmegaState, m: string): boolean {
 
 function hasPurchased(state: OmegaState, id: string): boolean {
   return (state.purchasedItems ?? []).includes(id);
+}
+
+/** M5 扩建相关合成配方：图纸 + 工具 + 材料 */
+export const M5_CRAFT_RECIPE_IDS = [
+  "blueprint_expand",
+  "material_tools",
+  "material_supplies",
+] as const;
+
+/** M5 扩建相关合成是否已全部完成 */
+export function isM5CraftingComplete(state: OmegaState): boolean {
+  return M5_CRAFT_RECIPE_IDS.every((id) => hasPurchased(state, id));
 }
 
 /* ---------- 所有配方 ---------- */
@@ -235,14 +248,7 @@ export const ALL_RECIPES: CraftRecipe[] = [
     flavor: "一些工具及其使用说明书。",
     unlockCondition: "购买太空舱扩建图纸",
     isUnlocked: (s) => hasPurchased(s, "blueprint_expand"),
-    apply: (s) => {
-      // 检查是否两种材料都已购买 -> 解锁 room2
-      const purchased = s.purchasedItems ?? [];
-      if (purchased.includes("material_supplies")) {
-        return { room2Unlocked: true };
-      }
-      return {};
-    },
+    apply: () => ({}),
   },
   {
     id: "material_supplies",
@@ -255,14 +261,7 @@ export const ALL_RECIPES: CraftRecipe[] = [
     flavor: "最高端的科技扩建往往采用最原始的方式。",
     unlockCondition: "购买太空舱扩建图纸",
     isUnlocked: (s) => hasPurchased(s, "blueprint_expand"),
-    apply: (s) => {
-      // 检查是否两种材料都已购买 -> 解锁 room2
-      const purchased = s.purchasedItems ?? [];
-      if (purchased.includes("material_tools")) {
-        return { room2Unlocked: true };
-      }
-      return {};
-    },
+    apply: () => ({}),
   },
 
   // === 空间2装饰（需扩建完成） ===
@@ -446,13 +445,30 @@ export function tryCraft(
 
   const reward = recipe.apply(state);
   const purchased = [...(state.purchasedItems ?? []), recipeId];
+  const newState: Partial<OmegaState> = {
+    ...reward,
+    purchasedItems: purchased,
+    mood: Math.max(15, state.mood - recipe.costMood),
+  };
+
+  // M5：扩建相关合成（图纸/工具/材料）全部完成后进入建造阶段，
+  // 记录动工时间戳（与 M2 相同的规则），持续到下次启动视为 M5 完成
+  if (
+    isM5CraftingComplete({ ...state, purchasedItems: purchased }) &&
+    state.m5ConstructStartAt == null &&
+    !(state.completedMilestones ?? []).includes("m5_construction")
+  ) {
+    newState.m5ConstructStartAt = Date.now();
+    newState.pendingMilestoneEvent = M5_CONSTRUCT_HINT;
+    newState.emotion = "expectant";
+    const completed = new Set(state.completedMilestones ?? []);
+    completed.add("m5_craft_asked");
+    newState.completedMilestones = [...completed];
+  }
+
   return {
     success: true,
-    newState: {
-      ...reward,
-      purchasedItems: purchased,
-      mood: Math.max(15, state.mood - recipe.costMood),
-    },
+    newState,
     message: `成功合成「${recipe.name}」！`,
   };
 }

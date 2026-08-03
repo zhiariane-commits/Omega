@@ -123,6 +123,8 @@ export type OmegaState = {
   pendingMilestoneEvent: string | null;
   /** M2 清扫剧情：玩家同意打扫的时间戳（null=尚未同意） */
   m2CleanAgreedAt: number | null;
+  /** M5 扩建剧情：扩建相关合成全部完成后动工的时间戳（null=尚未开始），下次启动完成 M5 */
+  m5ConstructStartAt: number | null;
 };
 
 export type PersistedData = {

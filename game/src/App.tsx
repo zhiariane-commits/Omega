@@ -38,6 +38,7 @@ const fallbackState: OmegaState = {
   idleActionStart: Date.now(),
   idleActionDuration: 120_000,
   m2CleanAgreedAt: null,
+  m5ConstructStartAt: null,
 };
 
 export function App() {
