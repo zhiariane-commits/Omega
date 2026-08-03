@@ -803,6 +803,58 @@ function persistAiConfigToEnvFile(config: AiConfigTestPayload) {
   }
 }
 
+/** userData 中持久化的 AI 配置（打包后 .env.local 不可写/不存在，重启靠它恢复） */
+type AiConfigFile = {
+  visionApiKey?: string;
+  dialogueApiKey?: string;
+  visionModel?: string;
+  visionBaseUrl?: string;
+  dialogueModel?: string;
+  dialogueBaseUrl?: string;
+};
+
+function aiConfigFile() {
+  return path.join(app.getPath("userData"), "omega-ai-config.json");
+}
+
+/** 启动时加载玩家在序章配置的 AI 配置；仅当进程环境变量未设置时生效（.env.local / 系统环境优先）。 */
+function loadAiConfig() {
+  try {
+    const configPath = aiConfigFile();
+    if (!existsSync(configPath)) return;
+    const config = JSON.parse(readFileSync(configPath, "utf8")) as AiConfigFile;
+    const entries: Array<[string, string | undefined]> = [
+      ["VISION_API_KEY", config.visionApiKey],
+      ["MIMO_API_KEY", config.dialogueApiKey],
+      ["VISION_MODEL", config.visionModel],
+      ["VISION_BASE_URL", config.visionBaseUrl],
+      ["MIMO_MODEL", config.dialogueModel],
+      ["MIMO_BASE_URL", config.dialogueBaseUrl]
+    ];
+    let applied = 0;
+    for (const [key, value] of entries) {
+      if (value && process.env[key] === undefined) {
+        process.env[key] = value;
+        applied += 1;
+      }
+    }
+    if (applied > 0) console.log(`[ai] 已从 userData 加载 AI 配置（${applied} 项）`);
+  } catch (e) {
+    console.warn("[ai] 加载 userData AI 配置失败:", e);
+  }
+}
+
+/** 把解析后的 AI 配置写入 userData，保证打包后重启仍生效。 */
+function saveAiConfig(config: AiConfigFile) {
+  try {
+    const configPath = aiConfigFile();
+    writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
+    console.log("[ai:testConfig] AI 配置已写入 userData:", configPath);
+  } catch (e) {
+    console.warn("[ai:testConfig] 写入 userData AI 配置失败:", e);
+  }
+}
+
 /** 一次真实的 Chat Completions 连通性请求 */
 async function testChatCompletion(opts: {
   apiKey: string;
@@ -869,6 +921,7 @@ loadLocalEnv();
 
 app.whenReady().then(async () => {
   persisted = await loadPersistedData();
+  loadAiConfig();
   createTray();
   if (persisted.state.prologueDone) {
     createFloatingWindow();
@@ -1033,6 +1086,16 @@ ipcMain.handle("ai:testConfig", async (_event, payload: AiConfigTestPayload): Pr
   process.env.MIMO_MODEL ??= "mimo-v2.5-pro";
   process.env.VISION_BASE_URL ??= "https://ark.cn-beijing.volces.com/api/v3";
   process.env.VISION_MODEL ??= "doubao-seed-2-0-mini-260428";
+
+  // 持久化到 userData：打包后 .env.local 不可写/不存在，重启靠 userData 恢复
+  saveAiConfig({
+    visionApiKey: process.env.VISION_API_KEY,
+    dialogueApiKey: process.env.MIMO_API_KEY,
+    visionModel: process.env.VISION_MODEL,
+    visionBaseUrl: process.env.VISION_BASE_URL,
+    dialogueModel: process.env.MIMO_MODEL,
+    dialogueBaseUrl: process.env.MIMO_BASE_URL
+  });
 
   // 视觉 / 对话并行测试，分别返回结果，便于前端逐项提示
   const [vision, dialogue] = await Promise.all([
