@@ -112,6 +112,21 @@ export function isM2CleanPoolActive(state: OmegaState): boolean {
   );
 }
 
+/* ---------- 里程碑 3: 看世界（屏幕识别引导） ---------- */
+
+/** M3 输入界面打招呼气泡文案（替换常规打招呼） */
+export const M3_SHOW_WORLD_GREETING = "嗯......我想看看你那边的世界，或许你直接把图片展示在屏幕上就可以了。可以吗？";
+
+/** M3 剧情是否处于「等待玩家启用屏幕识别并完成一轮对话」阶段（悬浮窗输入红点 + 输入界面屏幕识别红点） */
+export function isM3WorldPending(state: OmegaState): boolean {
+  const completed = new Set(state.completedMilestones ?? []);
+  return (
+    !completed.has("m3_show_world") &&
+    (state.mood ?? 0) >= 100 &&
+    (state.affinity ?? 0) >= 50
+  );
+}
+
 /* ---------- 里程碑检查 ---------- */
 
 export type MilestoneCheck = {
@@ -162,10 +177,11 @@ export function checkMilestones(state: OmegaState): MilestoneCheck {
     };
   }
 
+  // M3：不显示悬浮气泡，改为「输入」红点 + 输入界面「屏幕识别」红点引导（见 isM3WorldPending）
   if (!completed.has("m3_show_world") && mood >= 100 && affinity >= 50) {
     return {
       triggered: "m3_show_world",
-      bubbleText: "想看看你们的世界……",
+      bubbleText: M3_SHOW_WORLD_GREETING,
     };
   }
 

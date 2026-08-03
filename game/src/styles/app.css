@@ -966,18 +966,39 @@
   display: none;
 }
 
-/* ---------- M2 清扫剧情：太空舱入口红点提示 ---------- */
-.bubble-menu button.m2-red-dot {
+/* ---------- 里程碑红点提示：M2 太空舱入口 / M3 输入入口 ---------- */
+.bubble-menu button.m2-red-dot,
+.bubble-menu button.m3-red-dot {
   position: relative;
 }
 
-.bubble-menu button.m2-red-dot::after {
+.bubble-menu button.m2-red-dot::after,
+.bubble-menu button.m3-red-dot::after {
   content: "";
   position: absolute;
   top: -2px;
   right: -2px;
   width: 14px;
   height: 14px;
+  border-radius: 50%;
+  background: #e74c3c;
+  border: 2px solid #fffaf0;
+  box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.35);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+/* ---------- M3：输入界面「屏幕识别」选项红点提示 ---------- */
+.screen-toggle--alert {
+  position: relative;
+}
+
+.screen-toggle--alert::after {
+  content: "";
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #e74c3c;
   border: 2px solid #fffaf0;

@@ -21,6 +21,8 @@ import {
   applyMilestoneReward,
   pickPeriodicTopic,
   isM2CleanStoryPending,
+  isM3WorldPending,
+  M3_SHOW_WORLD_GREETING,
   ALL_MILESTONES,
 } from "../systems/storyMilestones";
 import { generateOptions } from "../systems/optionAgent";
@@ -200,6 +202,15 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       console.log('[OptionsAgent] response.reply:', response.reply);
       setOmegaBubbleText(response.reply);
       generateAgentOptions(response.reply);
+      // M3：启用屏幕识别并完成一轮对话后，视为「看世界」完成（红点与引导随之消失）
+      const nextState = response.state;
+      if (
+        includeScreenshot &&
+        nextState &&
+        !(nextState.completedMilestones ?? []).includes("m3_show_world")
+      ) {
+        await updateState(applyMilestoneReward("m3_show_world", nextState));
+      }
       if (response.featureIntent === "capsule") {
         await window.omega.window.openCapsule();
       }
@@ -344,7 +355,12 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
   // ---------- 里程碑检测 ----------
   useEffect(() => {
     const result = checkMilestones(stateRef.current);
-    if (result.triggered && !stateRef.current.pendingMilestoneEvent) {
+    // M3 不显示悬浮气泡：改为「输入」红点 + 输入界面「屏幕识别」红点引导
+    if (
+      result.triggered &&
+      result.triggered !== "m3_show_world" &&
+      !stateRef.current.pendingMilestoneEvent
+    ) {
       updateState({ pendingMilestoneEvent: result.bubbleText }).catch(() => {});
     }
   }, [state.mood, state.affinity, state.unlocked, updateState]);
@@ -472,8 +488,11 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
       const log = await window.omega.state.getSessionLog();
       const lastOmega = [...log].reverse().find(l => l.speaker === 'omega');
       let bubbleText = lastOmega?.text ?? null;
-      // Only show periodic topic on the first chat open of this launch
-      if (!greetingShownRef.current) {
+      // M3 等待期间：输入界面打招呼气泡替换为 M3 引导文案（不占用首次打招呼）
+      if (isM3WorldPending(stateRef.current)) {
+        bubbleText = M3_SHOW_WORLD_GREETING;
+      } else if (!greetingShownRef.current) {
+        // Only show periodic topic on the first chat open of this launch
         greetingShownRef.current = true;
         if (stateRef.current.completedMilestones.includes("m1_first_greeting") && stateRef.current.mood > 50) {
           bubbleText = pickPeriodicTopic();
@@ -774,7 +793,10 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
         <nav className="bubble-menu bubble-menu--root">
           <button
             type="button"
-            className={moodLocked ? "is-locked" : ""}
+            className={[
+              moodLocked ? "is-locked" : "",
+              isM3WorldPending(state) ? "m3-red-dot" : "",
+            ].filter(Boolean).join(" ")}
             onClick={(e) => {
               e?.stopPropagation();
               if (!lowMoodBlock("input")) openPanel("chat");
@@ -914,7 +936,11 @@ export function FloatingWindow({ state, setState, updateState }: Props) {
             </div>
           )}
           <form className="chat-form" onSubmit={sendMessage}>
-            <label className="screen-toggle">
+            <label
+              className={`screen-toggle${
+                isM3WorldPending(state) ? " screen-toggle--alert" : ""
+              }`}
+            >
               <input
                 type="checkbox"
                 checked={includeScreenshot}

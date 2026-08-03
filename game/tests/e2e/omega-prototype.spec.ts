@@ -133,4 +133,45 @@ test.describe("Ω desktop pet functional prototype", () => {
     await expect(page.getByRole("button", { name: "合成机", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "书架", exact: true })).toBeVisible();
   });
+
+  test("M3 screen-recognition flow: red dots guide and complete after one vision round", async ({ page }) => {
+    // M3 前置：M1/M2 已完成，且心境 >= 100、好感 >= 50
+    await page.addInitScript((state) => {
+      window.localStorage.setItem("omega.browser.state", JSON.stringify(state));
+      window.localStorage.removeItem("omega.browser.memories");
+      window.localStorage.setItem("omega.browser.forceMock", "1");
+    }, {
+      ...readyState,
+      mood: 100,
+      affinity: 50,
+      completedMilestones: ["m1_first_greeting", "m2_clean_asked", "m2_clean_capsule"],
+    });
+    await page.goto("/?view=floating");
+
+    // M3 触发后：悬浮窗「输入」气泡出现红点
+    await page.getByRole("button", { name: "Ω" }).click();
+    const inputButton = page.getByRole("button", { name: "输入" });
+    await expect(inputButton).toHaveClass(/m3-red-dot/);
+
+    // 输入界面：打招呼气泡替换为 M3 文案 + 屏幕识别选项出现红点
+    await inputButton.click();
+    await expect(page.getByLabel("Ω 对话")).toContainText("嗯......我想看看你那边的世界，或许你直接把图片展示在屏幕上就可以了。可以吗？");
+    const screenToggle = page.locator(".screen-toggle");
+    await expect(screenToggle).toHaveClass(/screen-toggle--alert/);
+
+    // 勾选屏幕识别并发送一条消息（完成一轮对话）→ M3 完成、红点消失
+    await screenToggle.locator('input[type="checkbox"]').check();
+    const chatInput = page.locator('input[placeholder="和Ω说话..."]');
+    await chatInput.fill("这就是我的世界");
+    await chatInput.press("Enter");
+    await expect(page.getByLabel("Ω 对话")).toContainText("我在。你说的话会被我认真收起来");
+    await expect(screenToggle).not.toHaveClass(/screen-toggle--alert/);
+
+    // 重新打开输入界面：打招呼气泡恢复正常（不再是 M3 文案）
+    await page.getByRole("button", { name: "关闭聊天" }).click();
+    await page.getByRole("button", { name: "Ω" }).click();
+    await expect(page.getByRole("button", { name: "输入" })).not.toHaveClass(/m3-red-dot/);
+    await page.getByRole("button", { name: "输入" }).click();
+    await expect(page.getByLabel("Ω 对话")).not.toContainText("我想看看你那边的世界");
+  });
 });
