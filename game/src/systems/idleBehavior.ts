@@ -29,6 +29,26 @@ type WeightEntry = {
   duration: number; // ms
 };
 
+/** 动作池中的单个动作明细（开发者面板展示用） */
+export type IdlePoolEntry = {
+  action: OmegaIdleAction;
+  /** 权重值 */
+  weight: number;
+  /** 命中概率（0-100，保留 1 位小数） */
+  probability: number;
+  /** 实际执行时长 ms（未制作模组时为占位时长） */
+  duration: number;
+};
+
+/** 待机动作池信息（开发者面板展示用） */
+export type IdlePoolInfo = {
+  poolId: "focus" | "construction" | "lowMood" | "highMood";
+  poolName: string;
+  /** 总权重 */
+  totalWeight: number;
+  entries: IdlePoolEntry[];
+};
+
 /** 动作模组定义 */
 export type IdleActionModule = {
   /** 动作基准时长 ms */
@@ -160,8 +180,13 @@ export function getAffectionLevel(affinity: number): "low" | "medium" | "high" {
 
 /* ---- 内部：构造概率权重表 ---- */
 
-function buildWeights(state: OmegaState): WeightEntry[] {
-  const { mood, unlocked } = state;
+/** 构建当前生效的动作池（含池名/池 ID，供调度与开发者面板共用） */
+function buildPool(state: OmegaState): {
+  poolId: IdlePoolInfo["poolId"];
+  poolName: string;
+  entries: WeightEntry[];
+} {
+  const { mood } = state;
   // M2 清扫池生效窗口：第一阶段（提醒打扫）完成后 ~ 第二阶段（清洁完成）完成前
   const m2Cleaning = isM2CleanPoolActive(state);
   // M5 建造池生效窗口：扩建相关合成全部完成后（动工） ~ 下次启动完成 M5 前
@@ -179,32 +204,44 @@ function buildWeights(state: OmegaState): WeightEntry[] {
       wooden_sign: 5 * 60_000,
       sleep: 1 * 60_000,
     };
-    return focusActions.map((action) => ({
-      action,
-      weight: 25, // 均匀分布
-      duration: getEffectiveIdleDuration(action, focusDurations[action]),
-    }));
+    return {
+      poolId: "focus",
+      poolName: "专注模式池（currentMode = focus）",
+      entries: focusActions.map((action) => ({
+        action,
+        weight: 25, // 均匀分布
+        duration: getEffectiveIdleDuration(action, focusDurations[action]),
+      })),
+    };
   }
 
   // ② 建造/清扫池：M2 清扫窗口（第一阶段完成后 ~ 第二阶段完成前）或 M5 建造持续期间
   if (m2Cleaning || m5Constructing) {
-    return buildConstructionPool(state);
+    return {
+      poolId: "construction",
+      poolName: "建造/清扫池（M2 清扫 / M5 建造）",
+      entries: buildConstructionPool(state),
+    };
   }
 
   // ③ 普通低心境值池（mood < 50）：跟随鼠标 5min(50%) / 发呆 2min(50%)
   if (mood < 50) {
-    return [
-      {
-        action: "follow_mouse",
-        weight: 50,
-        duration: getEffectiveIdleDuration("follow_mouse", 5 * 60_000),
-      },
-      {
-        action: "stare",
-        weight: 50,
-        duration: getEffectiveIdleDuration("stare", 2 * 60_000),
-      },
-    ];
+    return {
+      poolId: "lowMood",
+      poolName: "普通低心境池（mood < 50）",
+      entries: [
+        {
+          action: "follow_mouse",
+          weight: 50,
+          duration: getEffectiveIdleDuration("follow_mouse", 5 * 60_000),
+        },
+        {
+          action: "stare",
+          weight: 50,
+          duration: getEffectiveIdleDuration("stare", 2 * 60_000),
+        },
+      ],
+    };
   }
 
   // ④ 普通高心境池（mood >= 50）：跟随鼠标 5min(40%) / 发呆 1min(10%) / 休闲动作共 50%
@@ -232,7 +269,35 @@ function buildWeights(state: OmegaState): WeightEntry[] {
     });
   }
 
-  return entries;
+  return {
+    poolId: "highMood",
+    poolName: "普通高心境池（mood >= 50）",
+    entries,
+  };
+}
+
+function buildWeights(state: OmegaState): WeightEntry[] {
+  return buildPool(state).entries;
+}
+
+/**
+ * 获取当前生效的待机动作池（含各动作权重 / 概率 / 时长），供开发者面板展示。
+ * 概率按 weight / totalWeight 计算，保留 1 位小数。
+ */
+export function getIdleActionPool(state: OmegaState): IdlePoolInfo {
+  const { poolId, poolName, entries } = buildPool(state);
+  const totalWeight = entries.reduce((sum, e) => sum + e.weight, 0);
+  return {
+    poolId,
+    poolName,
+    totalWeight,
+    entries: entries.map((e) => ({
+      action: e.action,
+      weight: e.weight,
+      probability: totalWeight > 0 ? Math.round((e.weight / totalWeight) * 1000) / 10 : 0,
+      duration: e.duration,
+    })),
+  };
 }
 
 /** 建造/清扫池：木牌维护 5min(40%) / 跟随鼠标 5min(20%) / 发呆+休闲动作共 40% */

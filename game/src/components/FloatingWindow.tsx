@@ -5,6 +5,7 @@ import {
   getAffectionLevel,
   getEffectiveIdleAction,
   getEffectiveIdleDuration,
+  getIdleActionPool,
   IDLE_ACTION_LABELS,
   IDLE_ACTION_MODULES,
   isActionModuleReady,
@@ -1074,6 +1075,9 @@ function DevPanel({
   const [moodInput, setMoodInput] = useState(String(state.mood));
   const [affinityInput, setAffinityInput] = useState(String(state.affinity));
 
+  // 当前生效的待机动作池（含各动作权重 / 概率 / 时长）
+  const pool = getIdleActionPool(state);
+
   async function applyMood() {
     const val = Math.max(15, Math.min(1000, parseInt(moodInput) || 15));
     await updateState({ mood: val });
@@ -1244,6 +1248,46 @@ function DevPanel({
           <span className="dev-panel__current">
             当前: {state.currentMode === "idle" ? (IDLE_ACTION_LABELS[state.currentIdleAction] ?? "—") : "非待机状态"}
           </span>
+        </div>
+
+        {/* 当前动作池与详细概率参数 */}
+        <div className="dev-panel__pool">
+          <label>当前动作池与概率</label>
+          <p className="dev-panel__hint">
+            生效池：{pool.poolName}（总权重 {pool.totalWeight}）
+          </p>
+          {state.currentMode !== "idle" && state.currentMode !== "focus" && (
+            <p className="dev-panel__hint">
+              当前 currentMode = {state.currentMode}，动作池在进入待机调度时采用
+            </p>
+          )}
+          <div className="dev-panel__pool-list">
+            {pool.entries.map((entry) => {
+              const ready = isActionModuleReady(entry.action);
+              const active =
+                state.currentMode === "idle" && state.currentIdleAction === entry.action;
+              return (
+                <div
+                  key={entry.action}
+                  className={`dev-panel__pool-item${active ? " dev-panel__pool-item--active" : ""}`}
+                >
+                  <span className="dev-panel__pool-item-name">
+                    {IDLE_ACTION_LABELS[entry.action] ?? entry.action}
+                  </span>
+                  <span className="dev-panel__pool-item-bar">
+                    <span
+                      className="dev-panel__pool-item-bar-fill"
+                      style={{ width: entry.probability + "%" }}
+                    />
+                  </span>
+                  <span className="dev-panel__pool-item-meta">
+                    {entry.probability}% · 权重 {entry.weight} ·{" "}
+                    {Math.round(entry.duration / 60000)}min{ready ? "" : " · 占位"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <hr className="dev-panel__divider" />

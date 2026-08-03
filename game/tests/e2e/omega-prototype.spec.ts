@@ -144,6 +144,21 @@ test.describe("Ω desktop pet functional prototype", () => {
     await expect(page.getByLabel("Ω 对话")).toBeHidden();
   });
 
+  test("dev panel shows the active idle action pool with detailed probabilities", async ({ page }) => {
+    await seedReadyState(page);
+    await page.goto("/?view=floating");
+
+    // readyState：mood=60、写作/浇花未解锁 → 普通高心境池（跟随鼠标 40% / 发呆 10% / 看书 50%）
+    await page.getByRole("button", { name: "开发者选项" }).click();
+    await expect(page.getByText("当前动作池与概率")).toBeVisible();
+    await expect(page.getByText("普通高心境池（mood >= 50）")).toBeVisible();
+    const poolItems = page.locator(".dev-panel__pool-item");
+    await expect(poolItems).toHaveCount(3);
+    await expect(poolItems.filter({ hasText: "看着你这边" })).toContainText("40% · 权重 40 · 5min");
+    await expect(poolItems.filter({ hasText: "望着窗外发呆" })).toContainText("10% · 权重 10 · 1min");
+    await expect(poolItems.filter({ hasText: "在看书" })).toContainText("50% · 权重 50 · 5min");
+  });
+
   test("capsule route renders the room, movement surface, and close action", async ({ page }) => {
     await seedReadyState(page);
     await page.goto("/?view=capsule");
