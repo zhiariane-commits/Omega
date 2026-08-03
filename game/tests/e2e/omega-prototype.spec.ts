@@ -251,4 +251,39 @@ test.describe("Ω desktop pet functional prototype", () => {
     await page.getByRole("button", { name: "输入" }).click();
     await expect(page.getByLabel("Ω 对话")).not.toContainText("我今天突然想到了过去");
   });
+  test("crafting panel covers design-doc recipes and blueprint unlock at mood 300", async ({ page }) => {
+    // 前置：M1/M2 已完成、心境 300 → 太空舱美化解锁 + 扩建图纸（心境值首次达到 300）可合成
+    await page.addInitScript((state) => {
+      window.localStorage.setItem("omega.browser.state", JSON.stringify(state));
+      window.localStorage.removeItem("omega.browser.memories");
+      window.localStorage.setItem("omega.browser.forceMock", "1");
+    }, {
+      ...readyState,
+      mood: 300,
+      affinity: 12,
+      completedMilestones: ["m1_first_greeting", "m2_clean_asked", "m2_clean_capsule"],
+    });
+    await page.goto("/?view=floating");
+
+    // 打开悬浮窗 → 事项 → 合成机
+    await page.getByRole("button", { name: "Ω" }).click();
+    await page.getByRole("button", { name: "事项" }).click();
+    await page.getByRole("button", { name: "合成机" }).click();
+    const panel = page.locator(".crafting-panel");
+    await expect(panel).toBeVisible();
+
+    // 设计稿：心境值达到 300 后「图纸」类别解锁（太空舱扩建图纸）
+    await panel.getByRole("button", { name: "图纸" }).click();
+    await expect(panel.getByText("太空舱扩建图纸")).toBeVisible();
+
+    // 设计稿：太空舱美化新增「一整套新风格合成机」
+    await panel.getByRole("button", { name: "合成机" }).click();
+    await expect(panel.getByText("一整套新风格合成机")).toBeVisible();
+    await panel.getByRole("button", { name: "合成", exact: true }).click();
+    await expect(page.locator(".click-bubble")).toContainText("成功合成「一整套新风格合成机」！");
+
+    // 合成后进入「已合成」列表
+    await panel.getByRole("button", { name: "已合成" }).click();
+    await expect(panel.getByText("一整套新风格合成机")).toBeVisible();
+  });
 });

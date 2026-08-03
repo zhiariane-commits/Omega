@@ -556,6 +556,15 @@ function drawDecorationOverlay(
     text.alpha = 0.7;
     stage.addChild(text);
   }
+
+  // Equipped crafting machine (合成机美化): emoji placeholder
+  if (equipped.furniture || equipped.capsule_furniture) {
+    const text = new Text("🛠️", { fill: 0x88ccff, fontSize: 30 });
+    text.anchor.set(0.5);
+    text.position.set(width * (0.5 + 300 / 1080), height * 0.52);
+    text.alpha = 0.7;
+    stage.addChild(text);
+  }
 }
 
 /** Minimal UI overlay: mood/todo text + door indicator. */

@@ -141,6 +141,19 @@ export const ALL_RECIPES: CraftRecipe[] = [
     apply: () => ({}),
   },
 
+  {
+    id: "capsule_furniture_1",
+    emoji: "🛠️",
+    name: "一整套新风格合成机",
+    category: "capsule_furniture",
+    categoryLabel: "合成机",
+    costMood: 100,
+    effect: "美化",
+    flavor: "（等美工设计）",
+    unlockCondition: "完成清洁太空舱任务",
+    isUnlocked: (s) => hasMilestone(s, "m2_clean_capsule"),
+    apply: () => ({}),
+  },
   // === 书桌摆件（需 M2） ===
   {
     id: "desk_books",
@@ -208,7 +221,7 @@ export const ALL_RECIPES: CraftRecipe[] = [
     effect: "解锁扩建材料和工具",
     flavor: "太空舱的扩建图纸。",
     unlockCondition: "心境值首次达到300",
-    isUnlocked: (s) => hasMilestone(s, "m5_construction"),
+    isUnlocked: (s) => s.mood >= 300,
     apply: (s) => ({ unlocked: { ...s.unlocked, construction: true } }),
   },
   {
